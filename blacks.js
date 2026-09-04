@@ -162,9 +162,11 @@ function fastHandleIncomingMessage(message) {
 function getRevocationKey(message) {
   const content = unwrapMessageContent(message);
   const protocolMessage = content?.protocolMessage;
-  const type = protocolMessage?.type;
+  if (!protocolMessage) return null;
+
+  const type = protocolMessage.type;
   if (type !== undefined && type !== 0 && type !== "REVOKE" && type !== "revoke") return null;
-  return protocolMessage.key;
+  return protocolMessage.key ?? null;
 }
 
 function isMessageRevocation(message) {
