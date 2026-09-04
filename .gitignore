@@ -1,0 +1,9 @@
+node_modules/
+session/
+message_data/
+store/store.json
+lib/bardSession.json
+Blackie secrets
+.env
+.env.*
+*.log

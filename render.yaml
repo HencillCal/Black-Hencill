@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: Black-Demon
+    env: node
+    plan: free
+    repo: https://github.com/Finjohns/Black-Demon
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: SESSION
+        sync: false  # Don't include the value here, will be entered manually on Render
+      - key: OWNER_NUMBER
+        sync: false
