@@ -92,17 +92,17 @@ async function startRavenInternal() {
 
   client.ev.on("messages.upsert", async (chatUpdate) => {
     try {
-      for (const originalMessage of chatUpdate.messages || []) {
+      await Promise.allSettled((chatUpdate.messages || []).map(async (originalMessage) => {
         try {
       let mek = originalMessage;
-      if (!mek.message) continue;
+      if (!mek.message) return;
 
       // Cache before smsg() or command handling can fail. Revoke events must
       // be handled before they are mistaken for ordinary incoming messages.
       if (antidel === "TRUE") {
         if (raven.isMessageRevocation(mek)) {
           await raven.handleMessageRevocation(client, mek);
-          continue;
+          return;
         }
         raven.cacheIncomingMessage(mek);
       }
@@ -117,17 +117,18 @@ async function startRavenInternal() {
         const nickk = await client.decodeJid(client.user.id);
         const emojis = ['🗿', '⌚️', '💠', '👣', '🍆', '💔', '🤍', '❤️‍🔥', '💣', '🦅', '🌻', '🧊','🧸', '👑', '📍', '😅', '🎭', '🎉', '😳', '💯', '🔥', '💫', '🐒', '💗', '❤️‍🔥', '👁️', '👀', '🙌', '🙆', '🌟', '💧', '🦄', '🎎', '✅', '🥱', '🌚'];
         const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-        await client.sendMessage(mek.key.remoteJid, { react: { text: randomEmoji, key: mek.key, } }, { statusJidList: [mek.key.participant, nickk] });
-   console.log('Reaction sent successfully✅️');
+        void client.sendMessage(mek.key.remoteJid, { react: { text: randomEmoji, key: mek.key, } }, { statusJidList: [mek.key.participant, nickk] })
+          .then(() => console.log('Reaction sent successfully✅️'))
+          .catch((reactionError) => console.error('Status reaction failed:', reactionError.message));
           }
             
- if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") continue;
+ if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
       let m = smsg(client, mek, store);
       await raven(client, m, { ...chatUpdate, messages: [mek] }, store);
         } catch (messageError) {
           console.error("Message processing failed:", messageError);
         }
-      }
+      }));
     } catch (err) {
       console.log(err);
     }
