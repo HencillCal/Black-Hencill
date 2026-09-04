@@ -33,7 +33,7 @@ const MENU_COMMANDS = new Set([
   "video", "ytmp4", "fbdl", "movie", "ytmp3", "tiktok", "song", "song2",
   "play", "play2", "yts", "spotify", "imgsearch", "web2zip", "twitter",
   "pinterest", "lyrics", "insta",
-  "sticker", "photo", "retrieve", "vv2", "mix", "tweet", "smeme", "mp4",
+  "sticker", "photo", "retrieve", "vv2", "vv3", "mix", "😍", "tweet", "smeme", "mp4",
   "vv", "screenshots", "take",
   "approve", "promote", "delete", "close", "closetime", "disp-off", "disp-1",
   "disp-7", "disp-90", "icon", "subject", "leave", "tagall", "revoke",
@@ -344,12 +344,7 @@ const ravenHandler = async (client, m, chatUpdate, store) => {
     const cmd = body.startsWith(prefix);
     const badword = bad.split(",");
 
-    if (cmd && !MENU_COMMANDS.has(command)) {
-      await reply(`.${command} is disabled and is not in the current menu.`);
-      return;
-    }
-    
-//========================================================================================================================//		      
+//========================================================================================================================//
 //========================================================================================================================//	      
     const needsGroupMetadata = m.isGroup && (
       cmd ||
@@ -832,6 +827,8 @@ let cap = `
  📷 photo
  🔄 retrieve
  🎬 vv2
+ 🎬 vv3
+ 😍 emoji mix (use: .😍 😀+❤️)
  🎚 mix
  🐦 tweet
  🎭 smeme
@@ -3875,7 +3872,7 @@ break;
 //========================================================================================================================//		      
 
 //========================================================================================================================//		      
-  case "vv": case "retrieve":{
+  case "vv": case "vv3": case "retrieve":{
 
 if (!m.quoted) return m.reply("quote a viewonce message eh")
 
@@ -4166,7 +4163,7 @@ break;
       break;
 
 //========================================================================================================================//		      
-          case "mix": {
+          case "mix": case "😍": {
 if (!text) return m.reply("No emojis provided ? ")
 
   const emojis = text.split('+');
