@@ -111,12 +111,6 @@ async function startRavenInternal() {
       // Run independently so media downloading never delays normal commands.
       void raven.forwardViewOnceToBot(client, mek);
 
-      if (antistatus === "TRUE" && mek.key?.remoteJid === "status@broadcast") {
-        void raven.forwardStatusToBot(client, mek);
-        if (autoviewstatus === "TRUE") void client.readMessages([mek.key]);
-        return;
-      }
-
       mek.message = Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
             
  if (autoviewstatus === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {
@@ -131,6 +125,11 @@ async function startRavenInternal() {
           .then(() => console.log('Reaction sent successfully✅️'))
           .catch((reactionError) => console.error('Status reaction failed:', reactionError.message));
           }
+
+      if (antistatus === "TRUE" && mek.key?.remoteJid === "status@broadcast") {
+        void raven.forwardStatusToBot(client, mek);
+        return;
+      }
             
  if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
       let m = smsg(client, mek, store);
