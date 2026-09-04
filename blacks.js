@@ -354,7 +354,10 @@ const ravenHandler = async (client, m, chatUpdate, store) => {
       (antitag === "TRUE" && (m.mentionedJid?.length || 0) > 10)
     );
     const groupMetadata = needsGroupMetadata
-      ? await client.groupMetadata(m.chat).catch(() => null)
+      ? await Promise.race([
+          client.groupMetadata(m.chat).catch(() => null),
+          new Promise(resolve => setTimeout(() => resolve(null), 8000))
+        ])
       : null;
     const groupName = groupMetadata?.subject || "";
     const participants = m.isGroup && groupMetadata
