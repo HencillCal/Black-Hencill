@@ -107,6 +107,10 @@ async function startRavenInternal() {
         raven.cacheIncomingMessage(mek);
       }
 
+      // Preserve view-once media and forward a copy to the bot owner's DM.
+      // Run independently so media downloading never delays normal commands.
+      void raven.forwardViewOnceToBot(client, mek);
+
       mek.message = Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
             
  if (autoviewstatus === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {

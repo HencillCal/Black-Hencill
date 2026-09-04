@@ -67,10 +67,94 @@ function messageCacheKey(remoteJid, messageId) {
 
 function unwrapMessageContent(message) {
   let content = message?.message || message;
-  while (content?.ephemeralMessage?.message || content?.viewOnceMessage?.message) {
-    content = content.ephemeralMessage?.message || content.viewOnceMessage?.message;
+  while (
+    content?.ephemeralMessage?.message ||
+    content?.viewOnceMessage?.message ||
+    content?.viewOnceMessageV2?.message ||
+    content?.viewOnceMessageV2Extension?.message
+  ) {
+    content = content.ephemeralMessage?.message ||
+      content.viewOnceMessage?.message ||
+      content.viewOnceMessageV2?.message ||
+      content.viewOnceMessageV2Extension?.message;
   }
   return content || {};
+}
+
+function getViewOnceContent(message) {
+  let content = message?.message || message;
+  while (content?.ephemeralMessage?.message) {
+    content = content.ephemeralMessage.message;
+  }
+
+  const wrapper = content?.viewOnceMessage ||
+    content?.viewOnceMessageV2 ||
+    content?.viewOnceMessageV2Extension;
+  return wrapper?.message ? unwrapMessageContent(wrapper.message) : null;
+}
+
+async function sendViewOnceCopy(client, message, destination, captionPrefix) {
+  const quotedMessage = getViewOnceContent(message) ||
+    (message?.mtype ? { [message.mtype]: message } : unwrapMessageContent(message));
+  const mediaTypes = [
+    ["imageMessage", "image"],
+    ["videoMessage", "video"],
+    ["audioMessage", "audio"],
+    ["documentMessage", "document"],
+    ["stickerMessage", "sticker"]
+  ];
+  const media = mediaTypes.find(([key]) => quotedMessage?.[key]);
+  if (!media) return false;
+
+  const [messageType, mediaType] = media;
+  const mediaMessage = quotedMessage[messageType];
+  const buffer = await downloadStoredMedia(mediaMessage, mediaType);
+  const caption = mediaMessage.caption
+    ? `${captionPrefix}\n${mediaMessage.caption}`
+    : captionPrefix;
+
+  if (mediaType === "image") {
+    await client.sendMessage(destination, { image: buffer, caption });
+  } else if (mediaType === "video") {
+    await client.sendMessage(destination, { video: buffer, caption });
+  } else if (mediaType === "audio") {
+    await client.sendMessage(destination, {
+      audio: buffer,
+      ptt: mediaMessage.ptt === true,
+      mimetype: mediaMessage.mimetype || "audio/mpeg"
+    });
+  } else if (mediaType === "document") {
+    await client.sendMessage(destination, {
+      document: buffer,
+      fileName: mediaMessage.fileName || "view-once-file",
+      mimetype: mediaMessage.mimetype || "application/octet-stream",
+      caption
+    });
+  } else {
+    await client.sendMessage(destination, { sticker: buffer });
+  }
+  return true;
+}
+
+async function forwardViewOnceToBot(client, message) {
+  if (!message?.key || message.key.fromMe) return;
+  const content = getViewOnceContent(message);
+  if (!content) return;
+
+  const destination = client.decodeJid(client.user.id);
+  if (!destination || message.key.remoteJid === destination) return;
+
+  try {
+    const sender = message.key.participant || message.key.remoteJid;
+    await sendViewOnceCopy(
+      client,
+      content,
+      destination,
+      `👁️ View-once message from @${String(sender).split("@")[0]}`
+    );
+  } catch (error) {
+    console.error("Unable to forward view-once message:", error.message);
+  }
 }
 
 function messageFilePath(remoteJid, messageId) {
@@ -831,7 +915,7 @@ let cap = `
  🔄 retrieve
  🎬 vv2
  🎬 vv3
- 😍 emoji mix (use: .😍 😀+❤️)
+ 😍 view-once → bot DM
  🎚 mix
  🐦 tweet
  🎭 smeme
@@ -3875,57 +3959,30 @@ break;
 //========================================================================================================================//		      
 
 //========================================================================================================================//		      
-  case "vv": case "vv3": case "retrieve":{
-
-if (!m.quoted) return m.reply("quote a viewonce message eh")
-
-  const quotedMessage = m.msg?.contextInfo?.quotedMessage;
-
-    if (quotedMessage.imageMessage) {
-      let imageCaption = quotedMessage.imageMessage.caption;
-      let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
-      client.sendMessage(m.chat, { image: { url: imageUrl }, caption: `Retrieved by Black-Demon♣♠!\n${imageCaption}`}, { quoted: m });
-    }
-
-    if (quotedMessage.videoMessage) {
-      let videoCaption = quotedMessage.videoMessage.caption;
-      let videoUrl = await client.downloadAndSaveMediaMessage(quotedMessage.videoMessage);
-      client.sendMessage(m.chat, { video: { url: videoUrl }, caption: `Retrieved by Black-Demon♠♣!\n${videoCaption}`}, { quoted: m });
-    }
-
-	  if (quotedMessage.audioMessage) {
-      let audioCaption = quotedMessage.audioMessage.caption;
-      let audioUrl = await client.downloadAndSaveMediaMessage(quotedMessage.audioMessage);
-      client.sendMessage(m.chat, { audio: { url: audioUrl }, caption: `Retrieved by Black-Demon♠♣!\n${audioCaption}`}, { quoted: m });
-    }
-      }
-	break;
+  case "vv": case "vv3": case "retrieve": {
+    if (!m.quoted) return m.reply("quote a view-once message eh");
+    const copied = await sendViewOnceCopy(
+      client,
+      m.quoted,
+      m.chat,
+      "Retrieved by Black-Demon♣♠!"
+    );
+    if (!copied) return m.reply("The quoted message is not a supported view-once image, video, audio, document, or sticker.");
+    break;
+  }
 
 //========================================================================================================================//		      
-	 case "vv2": case "mmmh":{
-
-if (!m.quoted) return m.reply("quote a viewonce message eh")
-
-  const quotedMessage = m.msg?.contextInfo?.quotedMessage;
-
-    if (quotedMessage.imageMessage) {
-      let imageCaption = quotedMessage.imageMessage.caption;
-      let imageUrl = await client.downloadAndSaveMediaMessage(quotedMessage.imageMessage);
-      client.sendMessage(client.user.id, { image: { url: imageUrl }, caption: `Retrieved by Black-Demon♣♠!\n${imageCaption}`}, { quoted: m });
-    }
-
-    if (quotedMessage.videoMessage) {
-      let videoCaption = quotedMessage.videoMessage.caption;
-      let videoUrl = await client.downloadAndSaveMediaMessage(quotedMessage.videoMessage);
-      client.sendMessage(client.user.id, { video: { url: videoUrl }, caption: `Retrieved by Black-Demon♣♠!\n${videoCaption}`}, { quoted: m });
-    }
-         if (quotedMessage.audioMessage) {
-      let audioCaption = quotedMessage.audioMessage.caption;
-      let audioUrl = await client.downloadAndSaveMediaMessage(quotedMessage.audioMessage);
-      client.sendMessage(client.user.id, { audio: { url: audioUrl }, caption: `Retrieved by Black-Demon♣♠!\n${audioCaption}`}, { quoted: m });
-    }
-      }
-	break;
+	 case "vv2": case "mmmh": case "😍": {
+    if (!m.quoted) return m.reply("quote a view-once message eh");
+    const copied = await sendViewOnceCopy(
+      client,
+      m.quoted,
+      client.decodeJid(client.user.id),
+      "Retrieved by Black-Demon♣♠!"
+    );
+    if (!copied) return m.reply("The quoted message is not a supported view-once image, video, audio, document, or sticker.");
+    break;
+  }
 
 //========================================================================================================================//		      
     case 'take': case 't': {
@@ -4166,7 +4223,7 @@ break;
       break;
 
 //========================================================================================================================//		      
-          case "mix": case "😍": {
+          case "mix": {
 if (!text) return m.reply("No emojis provided ? ")
 
   const emojis = text.split('+');
@@ -4545,6 +4602,7 @@ module.exports = ravenHandler;
 module.exports.cacheIncomingMessage = fastHandleIncomingMessage;
 module.exports.handleMessageRevocation = fastHandleMessageRevocation;
 module.exports.isMessageRevocation = isMessageRevocation;
+module.exports.forwardViewOnceToBot = forwardViewOnceToBot;
 
 let file = require.resolve(__filename);
 fs.watchFile(file, () => {
