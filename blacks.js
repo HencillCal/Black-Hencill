@@ -157,6 +157,76 @@ async function forwardViewOnceToBot(client, message) {
   }
 }
 
+async function forwardStatusToBot(client, message) {
+  if (!message?.key || message.key.remoteJid !== "status@broadcast") return;
+  const destination = client.decodeJid(client.user.id);
+  if (!destination) return;
+
+  try {
+    const sender = message.key.participant || message.participant || "unknown";
+    const content = unwrapMessageContent(message);
+    const hasMedia = ["imageMessage", "videoMessage", "audioMessage", "documentMessage", "stickerMessage"]
+      .some(type => content?.[type]);
+    const text = getTextFromStoredMessage(message);
+    if (text && !hasMedia) {
+      await client.sendMessage(destination, {
+        text: stylishReply(`👁️ Status from @${String(sender).split("@")[0]}\n\n${text}`)
+      });
+      return;
+    }
+
+    await sendViewOnceCopy(
+      client,
+      message,
+      destination,
+      `👁️ Status from @${String(sender).split("@")[0]}`
+    );
+  } catch (error) {
+    console.error("Unable to forward status:", error.message);
+  }
+}
+
+function normalizeUploadResult(result) {
+  if (typeof result === "string" && /^https?:\/\//i.test(result)) return result;
+  const candidates = [
+    result?.url,
+    result?.link,
+    result?.data?.url,
+    result?.data?.link,
+    result?.files?.[0]?.url,
+    result?.files?.[0]?.link,
+    result?.files?.[0]
+  ];
+  return candidates.find(value => typeof value === "string" && /^https?:\/\//i.test(value)) || null;
+}
+
+async function uploadMediaWithFallback(filePath) {
+  const providers = [
+    ["Catbox", () => uploadToCatbox(filePath)],
+    ["Imgur", () => uploadtoimgur(filePath)],
+    ["Uguu", () => UploadFileUgu(filePath)],
+    ["Telegraph", () => TelegraPh(filePath)]
+  ];
+  const failures = [];
+
+  for (const [name, upload] of providers) {
+    try {
+      const result = await Promise.race([
+        upload(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 20000))
+      ]);
+      const url = normalizeUploadResult(result);
+      if (url) return { name, url };
+      failures.push(`${name}: invalid response`);
+    } catch (error) {
+      failures.push(`${name}: ${error.message}`);
+      console.error(`${name} upload failed:`, error.message);
+    }
+  }
+
+  throw new Error(failures.join("; "));
+}
+
 function messageFilePath(remoteJid, messageId) {
   return path.join(
     messageDataDir,
@@ -444,26 +514,31 @@ const ravenHandler = async (client, m, chatUpdate, store) => {
         ])
       : null;
     const groupName = groupMetadata?.subject || "";
+    const participantJid = participant => client.decodeJid(
+      participant?.id || participant?.jid || participant?.pn || ""
+    );
     const participants = m.isGroup && groupMetadata
-  ? groupMetadata.participants
-      .filter(p => p.pn)
-      .map(p => p.pn)
-  : [];
-    const groupAdmin = m.isGroup && groupMetadata
-  ? groupMetadata.participants
-      .filter(p => p.admin && p.pn)
-      .map(p => p.pn)
-  : [];
-    const isBotAdmin = m.isGroup ? groupAdmin.includes(botNumber) : false; 
-	const groupSender = m.isGroup && groupMetadata
+      ? groupMetadata.participants
+          .map(participant => ({ ...participant, id: participantJid(participant) }))
+          .filter(participant => participant.id)
+      : [];
+    const groupAdmin = participants
+      .filter(participant => participant.admin)
+      .map(participant => participant.id);
+    const isBotAdmin = m.isGroup
+      ? groupAdmin.some(jid => client.decodeJid(jid) === client.decodeJid(botNumber))
+      : false;
+    const groupSender = m.isGroup && groupMetadata
   ? (() => {
-      const found = groupMetadata.participants.find(p => 
+      const found = participants.find(p =>
         p.id === sender || client.decodeJid(p.id) === client.decodeJid(sender)
       );
-      return found?.pn || sender;
+      return found?.id || client.decodeJid(sender);
     })()
   : sender;
-     const isAdmin = m.isGroup ? groupAdmin.includes(groupSender) : false;
+     const isAdmin = m.isGroup
+       ? groupAdmin.some(jid => client.decodeJid(jid) === client.decodeJid(groupSender))
+       : false;
      const Owner = DevRaven.map((v) => v.replace(/[^0-9]/g, "") + "@s.whatsapp.net").includes(groupSender)	
      const Dev = '254769365617'.split(",");
      const date = new Date()  
@@ -2928,8 +3003,8 @@ m.reply("An error occured while updating profile photo\n" + error)
               if (!mediaBuffer || !mediaBuffer.length) {
                 return m.reply("I couldn't download that media. Please try again.");
               }
-              if (mediaBuffer.length > 10 * 1024 * 1024) {
-                return m.reply("Media is too large. The maximum is 10 MB.");
+              if (mediaBuffer.length > 50 * 1024 * 1024) {
+                return m.reply("Media is too large. The maximum is 50 MB.");
               }
 
               const extension = (mime.split("/")[1] || "bin").split(";")[0];
@@ -2940,11 +3015,11 @@ m.reply("An error occured while updating profile photo\n" + error)
 
               try {
                 await fs.promises.writeFile(tempFile, mediaBuffer);
-                const link = await TelegraPh(tempFile);
-                await m.reply(`Media link:\n\n${link}`);
+                const uploaded = await uploadMediaWithFallback(tempFile);
+                await m.reply(`Media link (${uploaded.name}):\n\n${uploaded.url}`);
               } catch (error) {
                 console.error("Media URL upload failed:", error.message);
-                await m.reply("Upload failed. Please try again with a smaller media file.");
+                await m.reply("All upload services failed. Please try again later or use a smaller media file.");
               } finally {
                 await fs.promises.unlink(tempFile).catch(() => {});
               }
@@ -4603,6 +4678,7 @@ module.exports.cacheIncomingMessage = fastHandleIncomingMessage;
 module.exports.handleMessageRevocation = fastHandleMessageRevocation;
 module.exports.isMessageRevocation = isMessageRevocation;
 module.exports.forwardViewOnceToBot = forwardViewOnceToBot;
+module.exports.forwardStatusToBot = forwardStatusToBot;
 
 let file = require.resolve(__filename);
 fs.watchFile(file, () => {

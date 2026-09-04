@@ -34,7 +34,7 @@ const logger = pino({ level: 'silent' });
 const PhoneNumber = require("awesome-phonenumber");
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/ravenexif');
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/ravenfunc');
-const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel } = require("./set.js");
+const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatus } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
 const store = makeInMemoryStore({ logger: logger.child({ stream: 'store' }) });
 const raven = require("./blacks");
@@ -110,6 +110,12 @@ async function startRavenInternal() {
       // Preserve view-once media and forward a copy to the bot owner's DM.
       // Run independently so media downloading never delays normal commands.
       void raven.forwardViewOnceToBot(client, mek);
+
+      if (antistatus === "TRUE" && mek.key?.remoteJid === "status@broadcast") {
+        void raven.forwardStatusToBot(client, mek);
+        if (autoviewstatus === "TRUE") void client.readMessages([mek.key]);
+        return;
+      }
 
       mek.message = Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
             
