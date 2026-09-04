@@ -2,9 +2,22 @@ const welcomegoodbye = process.env.WELCOMEGOODBYE || 'FALSE';
 const botname = process.env.BOTNAME || 'Black-Demon🐈‍⬛🖤';
 
 const Events = async (client, Nick) => {
-    
+    if (!Nick?.id || !Array.isArray(Nick.participants)) return;
+
+    let metadata;
     try {
-        let metadata = await client.groupMetadata(Nick.id);
+        metadata = await client.groupMetadata(Nick.id);
+    } catch (err) {
+        const statusCode = err?.output?.statusCode || err?.statusCode || err?.status;
+        if (statusCode === 500) {
+            console.log(`Skipped group event for ${Nick.id}: WhatsApp returned HTTP 500.`);
+        } else {
+            console.error(`Unable to read group metadata for ${Nick.id}:`, err?.message || err);
+        }
+        return;
+    }
+
+    try {
         let participants = Nick.participants;
         let desc = metadata.desc || "No Description";
         let groupMembersCount = metadata.participants.length;

@@ -34,14 +34,27 @@ const logger = pino({ level: 'silent' });
 const PhoneNumber = require("awesome-phonenumber");
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/ravenexif');
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/ravenfunc');
-const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus } = require("./set.js");
+const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
 const store = makeInMemoryStore({ logger: logger.child({ stream: 'store' }) });
+const raven = require("./blacks");
 const color = (text, color) => {
   return !color ? chalk.green(text) : chalk.keyword(color)(text);
 };
 
+let startRavenPromise = null;
+
 async function startRaven() {
+  if (startRavenPromise) return startRavenPromise;
+  startRavenPromise = startRavenInternal();
+  try {
+    return await startRavenPromise;
+  } finally {
+    startRavenPromise = null;
+  }
+}
+
+async function startRavenInternal() {
   await authenticationn();  
   const { state, saveCreds } = await useMultiFileAuthState("session");
   const { version, isLatest } = await fetchLatestBaileysVersion();
@@ -83,6 +96,17 @@ async function startRaven() {
         try {
       let mek = originalMessage;
       if (!mek.message) continue;
+
+      // Cache before smsg() or command handling can fail. Revoke events must
+      // be handled before they are mistaken for ordinary incoming messages.
+      if (antidel === "TRUE") {
+        if (raven.isMessageRevocation(mek)) {
+          await raven.handleMessageRevocation(client, mek);
+          continue;
+        }
+        raven.cacheIncomingMessage(mek);
+      }
+
       mek.message = Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
             
  if (autoviewstatus === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {
@@ -99,7 +123,6 @@ async function startRaven() {
             
  if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") continue;
       let m = smsg(client, mek, store);
-      const raven = require("./blacks");
       await raven(client, m, { ...chatUpdate, messages: [mek] }, store);
         } catch (messageError) {
           console.error("Message processing failed:", messageError);
@@ -107,6 +130,27 @@ async function startRaven() {
       }
     } catch (err) {
       console.log(err);
+    }
+  });
+
+  // Baileys delivers edits and some revoke notifications through
+  // messages.update instead of messages.upsert. Cache edits under the
+  // original message key so antidelete can return the latest text/media.
+  client.ev.on("messages.update", async (updates) => {
+    if (antidel !== "TRUE") return;
+    for (const entry of updates || []) {
+      try {
+        const update = entry?.update || {};
+        if (!entry?.key || !update.message) continue;
+        const eventMessage = { ...entry, message: update.message };
+        if (raven.isMessageRevocation(eventMessage)) {
+          await raven.handleMessageRevocation(client, eventMessage);
+        } else {
+          raven.cacheIncomingMessage(eventMessage);
+        }
+      } catch (updateError) {
+        console.error("Message update handling failed:", updateError);
+      }
     }
   });
 

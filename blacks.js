@@ -18,7 +18,7 @@ const advice = require("badadvice");
 const BASE_URL = 'https://noobs-api.top';
 const acrcloud = require("acrcloud"); 
 const ytdl = require("ytdl-core");
-const Client = new Genius.Client("TUoAEhL79JJyU-MpOsBDkcFhJFWFH28nv6dgVgPA-9R1YRwLNP_zicdX2omG2qKE8gYLJat5F5VSBNLfdnlpfJg"); // Scrapes if no key is provided
+const Client = new Genius.Client(process.env.GENIUS_ACCESS_TOKEN || ""); // Scrapes if no key is provided
 const { TelegraPh, UploadFileUgu, webp2mp4File, floNime } = require('./lib/ravenupload');
 const { Configuration, OpenAI } = require("openai");
 const { menu, autoread, mode, antidel, antitag, appname, herokuapi, gptdm, botname, antibot, prefix, author, packname, mycode, admin, botAdmin, dev, group, bad, DevRaven, NotOwner, antilink, antilinkall, wapresence, badwordkick } = require("./set.js");
@@ -52,6 +52,8 @@ const MENU_COMMANDS = new Set([
 ]);
 
 const messageCache = new Map();
+const messageIdIndex = new Map();
+const pendingMessageWrites = new Map();
 const MAX_CACHED_MESSAGES = 2000;
 const messageDataDir = path.join(__dirname, "message_data");
 
@@ -63,6 +65,14 @@ function messageCacheKey(remoteJid, messageId) {
   return `${remoteJid}:${messageId}`;
 }
 
+function unwrapMessageContent(message) {
+  let content = message?.message || message;
+  while (content?.ephemeralMessage?.message || content?.viewOnceMessage?.message) {
+    content = content.ephemeralMessage?.message || content.viewOnceMessage?.message;
+  }
+  return content || {};
+}
+
 function messageFilePath(remoteJid, messageId) {
   return path.join(
     messageDataDir,
@@ -71,37 +81,71 @@ function messageFilePath(remoteJid, messageId) {
   );
 }
 
-function loadStoredMessage(remoteJid, messageId) {
-  const cached = messageCache.get(messageCacheKey(remoteJid, messageId));
+async function loadStoredMessage(remoteJid, messageId) {
+  const exactKey = remoteJid && messageCacheKey(remoteJid, messageId);
+  const cached = exactKey && messageCache.get(exactKey);
   if (cached) return cached;
 
-  try {
-    const data = fs.readFileSync(
-      messageFilePath(remoteJid, messageId),
-      "utf8"
-    );
-    const parsed = JSON.parse(data, BufferJSON.reviver);
-    const message = Array.isArray(parsed) ? parsed[0] : parsed;
-    if (message) messageCache.set(messageCacheKey(remoteJid, messageId), message);
-    return message;
-  } catch {
-    return null;
+  const candidateKeys = [];
+  if (exactKey) candidateKeys.push(exactKey);
+  for (const key of messageIdIndex.get(messageId) || []) {
+    if (!candidateKeys.includes(key)) candidateKeys.push(key);
   }
+
+  for (const key of candidateKeys) {
+    const pending = pendingMessageWrites.get(key);
+    if (pending) await pending.catch(() => {});
+    const storedRemoteJid = key.slice(0, key.lastIndexOf(":"));
+    try {
+      const data = fs.readFileSync(
+        messageFilePath(storedRemoteJid, messageId),
+        "utf8"
+      );
+      const parsed = JSON.parse(data, BufferJSON.reviver);
+      const message = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (message) {
+        messageCache.set(key, message);
+        return message;
+      }
+    } catch {}
+  }
+  return null;
 }
 
 function fastHandleIncomingMessage(message) {
+  const updateMessage = message?.update?.message;
+  const directProtocolMessage = message?.message?.protocolMessage;
+  const protocolMessage = updateMessage?.protocolMessage || directProtocolMessage;
+  if (protocolMessage?.type === 14 && protocolMessage.editedMessage) {
+    message = {
+      ...message,
+      key: protocolMessage.key || message.key,
+      message: protocolMessage.editedMessage
+    };
+  } else if (updateMessage) {
+    message = { ...message, message: updateMessage };
+  }
+
   const remoteJid = message?.key?.remoteJid;
   const messageId = message?.key?.id;
   if (!remoteJid || !messageId) return;
 
   const key = messageCacheKey(remoteJid, messageId);
   messageCache.set(key, message);
+  if (!messageIdIndex.has(messageId)) messageIdIndex.set(messageId, new Set());
+  messageIdIndex.get(messageId).add(key);
   while (messageCache.size > MAX_CACHED_MESSAGES) {
-    messageCache.delete(messageCache.keys().next().value);
+    const oldestKey = messageCache.keys().next().value;
+    const oldestMessage = messageCache.get(oldestKey);
+    messageCache.delete(oldestKey);
+    const oldestId = oldestMessage?.key?.id;
+    if (oldestId && messageIdIndex.has(oldestId)) {
+      messageIdIndex.get(oldestId).delete(oldestKey);
+      if (!messageIdIndex.get(oldestId).size) messageIdIndex.delete(oldestId);
+    }
   }
 
-  // Do not block message processing on disk I/O.
-  fs.promises.mkdir(path.dirname(messageFilePath(remoteJid, messageId)), {
+  const write = fs.promises.mkdir(path.dirname(messageFilePath(remoteJid, messageId)), {
     recursive: true
   }).then(() => fs.promises.writeFile(
     messageFilePath(remoteJid, messageId),
@@ -109,14 +153,22 @@ function fastHandleIncomingMessage(message) {
   )).catch(error => {
     console.error("Unable to cache message for antidelete:", error.message);
   });
+  pendingMessageWrites.set(key, write);
+  write.finally(() => {
+    if (pendingMessageWrites.get(key) === write) pendingMessageWrites.delete(key);
+  });
 }
 
 function getRevocationKey(message) {
-  const content = message?.message;
-  const protocolMessage = content?.protocolMessage ||
-    content?.ephemeralMessage?.message?.protocolMessage ||
-    content?.viewOnceMessage?.message?.protocolMessage;
-  return protocolMessage?.key;
+  const content = unwrapMessageContent(message);
+  const protocolMessage = content?.protocolMessage;
+  const type = protocolMessage?.type;
+  if (type !== undefined && type !== 0 && type !== "REVOKE" && type !== "revoke") return null;
+  return protocolMessage.key;
+}
+
+function isMessageRevocation(message) {
+  return Boolean(getRevocationKey(message)?.id);
 }
 
 async function downloadStoredMedia(mediaMessage, mediaType) {
@@ -127,7 +179,7 @@ async function downloadStoredMedia(mediaMessage, mediaType) {
 }
 
 function getTextFromStoredMessage(message) {
-  const content = message?.message || {};
+  const content = unwrapMessageContent(message);
   return content.conversation ||
     content.extendedTextMessage?.text ||
     content.imageMessage?.caption ||
@@ -143,7 +195,7 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
   if (!deletedKey?.id) return;
 
   const remoteJid = deletedKey.remoteJid || revocationMessage.key?.remoteJid;
-  const originalMessage = loadStoredMessage(remoteJid, deletedKey.id);
+  const originalMessage = await loadStoredMessage(remoteJid, deletedKey.id);
   if (!originalMessage) {
     console.log(`Deleted message ${deletedKey.id} was not cached in time.`);
     return;
@@ -165,7 +217,7 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
   const deletedByFormatted = `@${String(deletedBy).split("@")[0]}`;
   let notificationText =
     `░ 🛒 ANTIDELETE 🛒 ░\n\n 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗯𝘆 : ${deletedByFormatted}\n\n`;
-  const content = originalMessage.message || {};
+  const content = unwrapMessageContent(originalMessage);
   const destination = botJid || client.user.id;
 
   try {
@@ -231,7 +283,7 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
   }
 }
 
-module.exports = raven = async (client, m, chatUpdate, store) => {
+const ravenHandler = async (client, m, chatUpdate, store) => {
   try {
     var body =
       m.mtype === "conversation"
@@ -289,16 +341,6 @@ module.exports = raven = async (client, m, chatUpdate, store) => {
     const qmsg = (quoted.msg || quoted);
     const cmd = body.startsWith(prefix);
     const badword = bad.split(",");
-
-    // Cache/recover delete notifications before doing any command work.
-    // This also lets unknown commands exit without a group metadata request.
-    if (antidel === "TRUE") {
-      if (getRevocationKey(mek)?.id) {
-        await fastHandleMessageRevocation(client, mek);
-        return;
-      }
-      fastHandleIncomingMessage(mek);
-    }
 
     if (cmd && !MENU_COMMANDS.has(command)) {
       await reply(`.${command} is disabled and is not in the current menu.`);
@@ -4496,6 +4538,11 @@ await client.sendMessage(m.chat, { image: { url: pp },
     console.log(util.format(err));
   }
 };
+
+module.exports = ravenHandler;
+module.exports.cacheIncomingMessage = fastHandleIncomingMessage;
+module.exports.handleMessageRevocation = fastHandleMessageRevocation;
+module.exports.isMessageRevocation = isMessageRevocation;
 
 let file = require.resolve(__filename);
 fs.watchFile(file, () => {
