@@ -76,7 +76,10 @@ async function startRavenInternal() {
     printQRInTerminal: true,
     browser: ["JINWIIL-AI", "Safari", "5.1.7"],
     auth: state,
-    syncFullHistory: true,
+    // Do not replay the entire WhatsApp history into the command handler.
+    // Full-history sync can queue thousands of events and make new commands
+    // appear minutes late on low-resource panels.
+    syncFullHistory: false,
   });
 
   if (autobio === 'TRUE') {
