@@ -43,6 +43,15 @@ function runUpdateShell(command) {
   });
 }
 
+async function gitRefIsAncestor(olderRef, newerRef) {
+  try {
+    await runUpdateShell(`git merge-base --is-ancestor ${olderRef} ${newerRef}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function restartUpdatedProcess() {
   await sleep(500);
   process.exit(0);
@@ -3467,6 +3476,10 @@ case 'update': {
   updateInProgress = true;
   try {
     await m.reply('🔄 Checking GitHub for the latest Black-Demon version…');
+    const worktree = (await runUpdateShell('git status --porcelain --untracked-files=all')).stdout.trim();
+    if (worktree) {
+      throw new Error('The server checkout has local changes. Resolve them before using .update.');
+    }
     const before = (await runUpdateShell('git rev-parse HEAD')).stdout.trim();
     await runUpdateShell('git fetch --prune origin main');
     const remote = (await runUpdateShell('git rev-parse origin/main')).stdout.trim();
@@ -3476,8 +3489,19 @@ case 'update': {
       return;
     }
 
+    const remoteContainsCurrent = await gitRefIsAncestor(before, remote);
+    if (!remoteContainsCurrent) {
+      const localContainsRemote = await gitRefIsAncestor(remote, before);
+      if (localContainsRemote) {
+        await m.reply(`✅ This server is already ahead of GitHub.\nVersion: ${before.slice(0, 7)}`);
+        return;
+      }
+      throw new Error('Local and GitHub branches have diverged. No pull or restart was performed.');
+    }
+
     await runUpdateShell('git pull --ff-only origin main');
     const after = (await runUpdateShell('git rev-parse HEAD')).stdout.trim();
+    if (after !== remote) throw new Error('GitHub changed during update. No restart was performed.');
     const changedFiles = (await runUpdateShell(`git diff --name-only ${before} ${after}`)).stdout;
     if (/^package\.json$|^package-lock\.json$/m.test(changedFiles)) {
       await m.reply('📦 Dependencies changed. Installing them before restart…');
