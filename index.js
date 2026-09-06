@@ -34,7 +34,7 @@ const logger = pino({ level: 'silent' });
 const PhoneNumber = require("awesome-phonenumber");
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/ravenexif');
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/ravenfunc');
-const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatus } = require("./set.js");
+const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
 const store = makeInMemoryStore({ logger: logger.child({ stream: 'store' }) });
 const raven = require("./blacks");
@@ -92,7 +92,7 @@ async function startRavenInternal() {
 
   client.ev.on("messages.upsert", async (chatUpdate) => {
     try {
-      await Promise.allSettled((chatUpdate.messages || []).map(async (originalMessage) => {
+      void Promise.allSettled((chatUpdate.messages || []).map(async (originalMessage) => {
         try {
       let mek = originalMessage;
       if (!mek.message) return;
@@ -101,6 +101,7 @@ async function startRavenInternal() {
       // be handled before they are mistaken for ordinary incoming messages.
       if (antidel === "TRUE") {
         if (raven.isMessageRevocation(mek)) {
+          if (raven.isStatusRevocation(mek) && antistatusdelete !== "TRUE") return;
           await raven.handleMessageRevocation(client, mek);
           return;
         }
@@ -126,8 +127,7 @@ async function startRavenInternal() {
           .catch((reactionError) => console.error('Status reaction failed:', reactionError.message));
           }
 
-      if (antistatus === "TRUE" && mek.key?.remoteJid === "status@broadcast") {
-        void raven.forwardStatusToBot(client, mek);
+      if (mek.key?.remoteJid === "status@broadcast") {
         return;
       }
             
@@ -154,6 +154,7 @@ async function startRavenInternal() {
         if (!entry?.key || !update.message) continue;
         const eventMessage = { ...entry, message: update.message };
         if (raven.isMessageRevocation(eventMessage)) {
+          if (raven.isStatusRevocation(eventMessage) && antistatusdelete !== "TRUE") continue;
           await raven.handleMessageRevocation(client, eventMessage);
         } else {
           raven.cacheIncomingMessage(eventMessage);

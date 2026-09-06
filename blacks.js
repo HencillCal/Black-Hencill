@@ -51,6 +51,13 @@ const MENU_COMMANDS = new Set([
   "jinwiilvmd"
 ]);
 
+const GROUP_METADATA_COMMANDS = new Set([
+  "approve", "promote", "delete", "del", "close", "closetime", "disp-off", "disp-1",
+  "disp-7", "disp-90", "icon", "subject", "changesubject", "leave", "tagall", "revoke",
+  "newlink", "reset", "unmute", "mute", "reject", "demote", "remove", "kick", "foreigners",
+  "open", "opentime", "gcprofile", "desc", "setdesc", "add", "hidetag", "tag", "vcf", "group-vcf"
+]);
+
 const messageCache = new Map();
 const messageIdIndex = new Map();
 const pendingMessageWrites = new Map();
@@ -138,6 +145,7 @@ async function sendViewOnceCopy(client, message, destination, captionPrefix) {
 
 async function forwardViewOnceToBot(client, message) {
   if (!message?.key || message.key.fromMe) return;
+  if (message.key.remoteJid === "status@broadcast") return;
   const content = getViewOnceContent(message);
   if (!content) return;
 
@@ -154,35 +162,6 @@ async function forwardViewOnceToBot(client, message) {
     );
   } catch (error) {
     console.error("Unable to forward view-once message:", error.message);
-  }
-}
-
-async function forwardStatusToBot(client, message) {
-  if (!message?.key || message.key.remoteJid !== "status@broadcast") return;
-  const destination = client.decodeJid(client.user.id);
-  if (!destination) return;
-
-  try {
-    const sender = message.key.participant || message.participant || "unknown";
-    const content = unwrapMessageContent(message);
-    const hasMedia = ["imageMessage", "videoMessage", "audioMessage", "documentMessage", "stickerMessage"]
-      .some(type => content?.[type]);
-    const text = getTextFromStoredMessage(message);
-    if (text && !hasMedia) {
-      await client.sendMessage(destination, {
-        text: stylishReply(`👁️ Status from @${String(sender).split("@")[0]}\n\n${text}`)
-      });
-      return;
-    }
-
-    await sendViewOnceCopy(
-      client,
-      message,
-      destination,
-      `👁️ Status from @${String(sender).split("@")[0]}`
-    );
-  } catch (error) {
-    console.error("Unable to forward status:", error.message);
   }
 }
 
@@ -327,6 +306,27 @@ function isMessageRevocation(message) {
   return Boolean(getRevocationKey(message)?.id);
 }
 
+function isStatusRevocation(message) {
+  const deletedKey = getRevocationKey(message);
+  return deletedKey?.remoteJid === "status@broadcast" ||
+    message?.key?.remoteJid === "status@broadcast";
+}
+
+function firstJid(...values) {
+  return values.find(value => typeof value === "string" && value.includes("@")) || "";
+}
+
+function normalizeSenderJid(client, jid) {
+  if (!jid) return "";
+  return client.decodeJid(jid);
+}
+
+function formatSenderMention(client, jid) {
+  const normalized = normalizeSenderJid(client, jid);
+  const user = normalized.split("@")[0].split(":")[0].replace(/[^0-9]/g, "");
+  return user ? `@${user}` : "unknown sender";
+}
+
 async function downloadStoredMedia(mediaMessage, mediaType) {
   const stream = await downloadContentFromMessage(mediaMessage, mediaType);
   const chunks = [];
@@ -347,32 +347,45 @@ function getTextFromStoredMessage(message) {
 }
 
 async function fastHandleMessageRevocation(client, revocationMessage) {
+  const receivedAt = Date.now();
   const deletedKey = getRevocationKey(revocationMessage);
   if (!deletedKey?.id) return;
 
-  const remoteJid = deletedKey.remoteJid || revocationMessage.key?.remoteJid;
+  const remoteJid = firstJid(
+    deletedKey.remoteJid,
+    revocationMessage.key?.remoteJid,
+    revocationMessage.remoteJid
+  );
   const originalMessage = await loadStoredMessage(remoteJid, deletedKey.id);
   if (!originalMessage) {
-    console.log(`Deleted message ${deletedKey.id} was not cached in time.`);
+    console.log(`Deleted message ${deletedKey.id} was not cached in time (${Date.now() - receivedAt}ms).`);
     return;
   }
 
-  const deletedBy = deletedKey.participant ||
-    revocationMessage.key?.participant ||
-    revocationMessage.participant ||
-    remoteJid;
-  const sentBy = originalMessage.key?.participant ||
-    originalMessage.key?.remoteJid ||
-    remoteJid;
+  const deletedBy = firstJid(
+    revocationMessage.key?.participant,
+    revocationMessage.participant,
+    revocationMessage.sender,
+    deletedKey.participant,
+    remoteJid
+  );
+  const sentBy = firstJid(
+    originalMessage.key?.participant,
+    originalMessage.participant,
+    originalMessage.key?.remoteJid,
+    remoteJid
+  );
   const botJid = client.decodeJid(client.user.id);
-  const normalizeJid = jid => typeof jid === "string" ? client.decodeJid(jid) : "";
+  const normalizedDeletedBy = normalizeSenderJid(client, deletedBy);
+  const normalizedSentBy = normalizeSenderJid(client, sentBy);
 
-  if (areJidsSameUser(normalizeJid(deletedBy), botJid) ||
-      areJidsSameUser(normalizeJid(sentBy), botJid)) return;
+  if (areJidsSameUser(normalizedDeletedBy, botJid) ||
+      areJidsSameUser(normalizedSentBy, botJid)) return;
 
-  const deletedByFormatted = `@${String(deletedBy).split("@")[0]}`;
+  const deletedByFormatted = formatSenderMention(client, deletedBy);
+  const isStatus = remoteJid === "status@broadcast";
   let notificationText =
-    `░ 🛒 ANTIDELETE 🛒 ░\n\n 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗯𝘆 : ${deletedByFormatted}\n\n`;
+    `░ 🛒 ${isStatus ? "STATUS ANTI-DELETE" : "ANTIDELETE"} 🛒 ░\n\n 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗯𝘆 : ${deletedByFormatted}\n\n`;
   const content = unwrapMessageContent(originalMessage);
   const destination = botJid || client.user.id;
 
@@ -382,6 +395,7 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
       await client.sendMessage(destination, {
         text: stylishReply(`${notificationText} 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗠𝗲𝘀𝘀𝗮𝗴𝗲 : ${text}`)
       });
+      console.log(`Antidelete text sent in ${Date.now() - receivedAt}ms.`);
       return;
     }
 
@@ -431,6 +445,7 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
     } else {
       await client.sendMessage(destination, { sticker: buffer });
     }
+    console.log(`Antidelete media sent in ${Date.now() - receivedAt}ms.`);
   } catch (error) {
     console.error("Error recovering deleted content:", error);
     await client.sendMessage(destination, {
@@ -501,7 +516,7 @@ const ravenHandler = async (client, m, chatUpdate, store) => {
 //========================================================================================================================//
 //========================================================================================================================//	      
     const needsGroupMetadata = m.isGroup && (
-      cmd ||
+      GROUP_METADATA_COMMANDS.has(command) ||
       (badwordkick === "TRUE" && Boolean(body)) ||
       (antilink === "TRUE" && body.includes("chat.whatsapp.com")) ||
       (antilinkall === "TRUE" && body.includes("https://")) ||
@@ -2998,6 +3013,9 @@ m.reply("An error occured while updating profile photo\n" + error)
 
               const mime = (q.msg || q).mimetype || "";
               if (!mime) return m.reply("The quoted message has no downloadable media.");
+              if (typeof q.download !== "function") {
+                return m.reply("This quoted media cannot be downloaded. Please quote the original media message.");
+              }
 
               const mediaBuffer = await q.download().catch(() => null);
               if (!mediaBuffer || !mediaBuffer.length) {
@@ -4677,8 +4695,8 @@ module.exports = ravenHandler;
 module.exports.cacheIncomingMessage = fastHandleIncomingMessage;
 module.exports.handleMessageRevocation = fastHandleMessageRevocation;
 module.exports.isMessageRevocation = isMessageRevocation;
+module.exports.isStatusRevocation = isStatusRevocation;
 module.exports.forwardViewOnceToBot = forwardViewOnceToBot;
-module.exports.forwardStatusToBot = forwardStatusToBot;
 
 let file = require.resolve(__filename);
 fs.watchFile(file, () => {
