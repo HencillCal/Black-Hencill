@@ -3,6 +3,7 @@ session/
 message_data/
 store/store.json
 lib/bardSession.json
+.bot-settings.json
 Blackie secrets
 .env
 .env.*

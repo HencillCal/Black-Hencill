@@ -34,7 +34,7 @@ const logger = pino({ level: 'silent' });
 const PhoneNumber = require("awesome-phonenumber");
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/ravenexif');
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/ravenfunc');
-const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete } = require("./set.js");
+const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete, getSetting } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
 const store = makeInMemoryStore({ logger: logger.child({ stream: 'store' }) });
 const raven = require("./blacks");
@@ -99,9 +99,9 @@ async function startRavenInternal() {
 
       // Cache before smsg() or command handling can fail. Revoke events must
       // be handled before they are mistaken for ordinary incoming messages.
-      if (antidel === "TRUE") {
+      if (getSetting("ANTIDELETE", antidel) === "TRUE") {
         if (raven.isMessageRevocation(mek)) {
-          if (raven.isStatusRevocation(mek) && antistatusdelete !== "TRUE") return;
+          if (raven.isStatusRevocation(mek) && getSetting("ANTIDELETE_STATUS", antistatusdelete) !== "TRUE") return;
           await raven.handleMessageRevocation(client, mek);
           return;
         }
@@ -114,11 +114,11 @@ async function startRavenInternal() {
 
       mek.message = Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
             
- if (autoviewstatus === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {
+ if (getSetting("AUTOVIEW_STATUS", autoviewstatus) === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {
         client.readMessages([mek.key]);
       }
             
- if (autoviewstatus === 'TRUE' && autolike === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {
+ if (getSetting("AUTOVIEW_STATUS", autoviewstatus) === 'TRUE' && getSetting("AUTOLIKE_STATUS", autolike) === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {
         const nickk = await client.decodeJid(client.user.id);
         const emojis = ['🗿', '⌚️', '💠', '👣', '🍆', '💔', '🤍', '❤️‍🔥', '💣', '🦅', '🌻', '🧊','🧸', '👑', '📍', '😅', '🎭', '🎉', '😳', '💯', '🔥', '💫', '🐒', '💗', '❤️‍🔥', '👁️', '👀', '🙌', '🙆', '🌟', '💧', '🦄', '🎎', '✅', '🥱', '🌚'];
         const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -147,14 +147,14 @@ async function startRavenInternal() {
   // messages.update instead of messages.upsert. Cache edits under the
   // original message key so antidelete can return the latest text/media.
   client.ev.on("messages.update", async (updates) => {
-    if (antidel !== "TRUE") return;
+    if (getSetting("ANTIDELETE", antidel) !== "TRUE") return;
     for (const entry of updates || []) {
       try {
         const update = entry?.update || {};
         if (!entry?.key || !update.message) continue;
         const eventMessage = { ...entry, message: update.message };
         if (raven.isMessageRevocation(eventMessage)) {
-          if (raven.isStatusRevocation(eventMessage) && antistatusdelete !== "TRUE") continue;
+          if (raven.isStatusRevocation(eventMessage) && getSetting("ANTIDELETE_STATUS", antistatusdelete) !== "TRUE") continue;
           await raven.handleMessageRevocation(client, eventMessage);
         } else {
           raven.cacheIncomingMessage(eventMessage);
