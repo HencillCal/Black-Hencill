@@ -18,7 +18,7 @@
      "bot-md", 
      "whatsapp-multi-device" 
    ], 
-   "base": "https://github.com/DikaArdnt/Hisoka-Morou", 
+   "base": "https://github.com/hencillCal/Black-Hencill", 
    "author": "Marchant", 
    "license": "MIT", 
    "dependencies": { 
@@ -87,7 +87,7 @@
    }, 
    "repository": { 
      "type": "git", 
-     "url": "git+https://github.com/Finjohns/Black-Demon.git" 
+     "url": "git+https://github.com/hencillCal/Black-Hencill.git" 
    }, 
    "bugs": { 
      "url": "https://github.com/Finjohns/Black-Demon/issues" 
