@@ -24,6 +24,29 @@ const { Configuration, OpenAI } = require("openai");
 const { menu, autoread, mode, antidel, antitag, appname, herokuapi, gptdm, botname, antibot, prefix, author, packname, mycode, admin, botAdmin, dev, group, bad, DevRaven, NotOwner, antilink, antilinkall, wapresence, badwordkick, getDisplaySettings, setSetting, normalizeSettingKey } = require("./set.js");
 const { smsg, runtime, fetchUrl, isUrl, processTime, formatp, tanggal, formatDate, getTime,  sleep, generateProfilePicture, clockString, fetchJson, getBuffer, jsonformat, format, parseMention, getRandom } = require('./lib/ravenfunc');
 const { exec, spawn, execSync } = require("child_process");
+let updateInProgress = false;
+
+function runUpdateShell(command) {
+  return new Promise((resolve, reject) => {
+    exec(command, {
+      cwd: __dirname,
+      timeout: 120000,
+      maxBuffer: 2 * 1024 * 1024
+    }, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = stdout;
+        error.stderr = stderr;
+        return reject(error);
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
+
+async function restartUpdatedProcess() {
+  await sleep(500);
+  process.exit(0);
+}
 
 // Only commands shown in the menu are enabled. Legacy switch cases remain
 // isolated below, but removed commands can never reach them.
@@ -3436,6 +3459,43 @@ case 'restart':
   await sleep(3000)  
   process.exit()  
   break;
+
+case 'update': {
+  if (!Owner) throw NotOwner;
+  if (updateInProgress) return m.reply('An update is already in progress. Please wait.');
+
+  updateInProgress = true;
+  try {
+    await m.reply('🔄 Checking GitHub for the latest Black-Demon version…');
+    const before = (await runUpdateShell('git rev-parse HEAD')).stdout.trim();
+    await runUpdateShell('git fetch --prune origin main');
+    const remote = (await runUpdateShell('git rev-parse origin/main')).stdout.trim();
+
+    if (before === remote) {
+      await m.reply(`✅ The bot is already up to date.\nVersion: ${before.slice(0, 7)}`);
+      return;
+    }
+
+    await runUpdateShell('git pull --ff-only origin main');
+    const after = (await runUpdateShell('git rev-parse HEAD')).stdout.trim();
+    const changedFiles = (await runUpdateShell(`git diff --name-only ${before} ${after}`)).stdout;
+    if (/^package\.json$|^package-lock\.json$/m.test(changedFiles)) {
+      await m.reply('📦 Dependencies changed. Installing them before restart…');
+      await runUpdateShell('npm install --omit=dev');
+    }
+
+    await m.reply(`✅ Updated successfully.\n${before.slice(0, 7)} → ${after.slice(0, 7)}\nRestarting the bot now…`);
+    await restartUpdatedProcess();
+  } catch (error) {
+    const details = String(error.stderr || error.message || 'unknown update error')
+      .replace(/\s+/g, ' ')
+      .slice(0, 500);
+    await m.reply(`❌ Update failed safely. No restart was performed.\n${details}`);
+  } finally {
+    updateInProgress = false;
+  }
+}
+break;
 
 //========================================================================================================================//		      
 case "remove": case "kick": { 

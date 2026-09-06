@@ -3,7 +3,7 @@ services:
     name: Black-Demon
     env: node
     plan: free
-    repo: https://github.com/Finjohns/Black-Demon
+    repo: https://github.com/HencillCal/Black-Hencill
     branch: main
     buildCommand: npm install
     startCommand: npm start
