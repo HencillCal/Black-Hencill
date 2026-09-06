@@ -144,6 +144,20 @@ function getViewOnceContent(message) {
   return wrapper?.message ? unwrapMessageContent(wrapper.message) : null;
 }
 
+function normalizeEditedMessage(message) {
+  const content = unwrapMessageContent(message);
+  const protocolMessage = content?.protocolMessage;
+  const editType = protocolMessage?.type;
+  const isEdit = editType === 14 || editType === "MESSAGE_EDIT" || editType === "message_edit";
+  if (!isEdit || !protocolMessage?.editedMessage) return message;
+
+  return {
+    ...message,
+    key: protocolMessage.key || message.key,
+    message: protocolMessage.editedMessage
+  };
+}
+
 async function sendViewOnceCopy(client, message, destination, captionPrefix) {
   const quotedMessage = getViewOnceContent(message) ||
     (message?.mtype ? { [message.mtype]: message } : unwrapMessageContent(message));
@@ -291,17 +305,8 @@ async function loadStoredMessage(remoteJid, messageId) {
 
 function fastHandleIncomingMessage(message) {
   const updateMessage = message?.update?.message;
-  const directProtocolMessage = message?.message?.protocolMessage;
-  const protocolMessage = updateMessage?.protocolMessage || directProtocolMessage;
-  if (protocolMessage?.type === 14 && protocolMessage.editedMessage) {
-    message = {
-      ...message,
-      key: protocolMessage.key || message.key,
-      message: protocolMessage.editedMessage
-    };
-  } else if (updateMessage) {
-    message = { ...message, message: updateMessage };
-  }
+  if (updateMessage) message = { ...message, message: updateMessage };
+  message = normalizeEditedMessage(message);
 
   const remoteJid = message?.key?.remoteJid;
   const messageId = message?.key?.id;
@@ -360,13 +365,29 @@ function firstJid(...values) {
   return values.find(value => typeof value === "string" && value.includes("@")) || "";
 }
 
-function normalizeSenderJid(client, jid) {
+async function normalizeSenderJid(client, jid) {
   if (!jid) return "";
-  return client.decodeJid(jid);
+  const decoded = client.decodeJid(jid);
+  if (!/@lid$/i.test(decoded)) return decoded;
+
+  try {
+    const mapping = client.signalRepository?.lidMapping;
+    if (mapping?.getPNForLID) {
+      const phoneJid = await mapping.getPNForLID(decoded);
+      if (phoneJid) return client.decodeJid(phoneJid);
+    }
+    if (client.getPNForLID) {
+      const phoneJid = await client.getPNForLID(decoded);
+      if (phoneJid) return client.decodeJid(phoneJid);
+    }
+  } catch (error) {
+    console.warn("Unable to resolve sender LID:", error.message);
+  }
+  return decoded;
 }
 
-function formatSenderMention(client, jid) {
-  const normalized = normalizeSenderJid(client, jid);
+async function formatSenderMention(client, jid) {
+  const normalized = await normalizeSenderJid(client, jid);
   const user = normalized.split("@")[0].split(":")[0].replace(/[^0-9]/g, "");
   return user ? `@${user}` : "unknown sender";
 }
@@ -407,6 +428,9 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
   }
 
   const deletedBy = firstJid(
+    revocationMessage.message?.protocolMessage?.participant,
+    revocationMessage.message?.protocolMessage?.sender,
+    revocationMessage.message?.protocolMessage?.senderKey?.participant,
     revocationMessage.key?.participant,
     revocationMessage.participant,
     revocationMessage.sender,
@@ -420,13 +444,13 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
     remoteJid
   );
   const botJid = client.decodeJid(client.user.id);
-  const normalizedDeletedBy = normalizeSenderJid(client, deletedBy);
-  const normalizedSentBy = normalizeSenderJid(client, sentBy);
+  const normalizedDeletedBy = await normalizeSenderJid(client, deletedBy);
+  const normalizedSentBy = await normalizeSenderJid(client, sentBy);
 
   if (areJidsSameUser(normalizedDeletedBy, botJid) ||
       areJidsSameUser(normalizedSentBy, botJid)) return;
 
-  const deletedByFormatted = formatSenderMention(client, deletedBy);
+  const deletedByFormatted = await formatSenderMention(client, deletedBy);
   const isStatus = remoteJid === "status@broadcast";
   let notificationText =
     `░ 🛒 ${isStatus ? "STATUS ANTI-DELETE" : "ANTIDELETE"} 🛒 ░\n\n 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗯𝘆 : ${deletedByFormatted}\n\n`;
@@ -4249,6 +4273,10 @@ break;
           author: pushname,
           categories: ["🤩", "🎉"],
         };
+        if (quotedType === "stickerMessage") {
+          await client.sendMessage(m.chat, { sticker: mediaBuffer }, { quoted: m });
+          return;
+        }
         const stickerFile = quotedType === "videoMessage"
           ? await client.sendVideoAsSticker(m.chat, mediaBuffer, m, stickerOptions)
           : await client.sendImageAsSticker(m.chat, mediaBuffer, m, stickerOptions);

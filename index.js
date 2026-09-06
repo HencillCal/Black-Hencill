@@ -43,6 +43,18 @@ const color = (text, color) => {
 };
 
 let startRavenPromise = null;
+let reconnectTimer = null;
+
+function scheduleRavenReconnect(reason) {
+  if (reconnectTimer) return;
+  console.log(`Scheduling reconnect${reason ? ` (${reason})` : ""}...`);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    startRaven().catch(error => {
+      console.error("Reconnect failed:", error.message);
+    });
+  }, 1500);
+}
 
 async function startRaven() {
   if (startRavenPromise) return startRavenPromise;
@@ -292,10 +304,10 @@ async function startRavenInternal() {
         process.exit();
       } else if (reason === DisconnectReason.connectionClosed) {
         console.log("Connection closed, reconnecting....");
-        startRaven();
+        scheduleRavenReconnect("connection closed");
       } else if (reason === DisconnectReason.connectionLost) {
         console.log("Connection Lost from Server, reconnecting...");
-        startRaven();
+        scheduleRavenReconnect("connection lost");
       } else if (reason === DisconnectReason.connectionReplaced) {
         console.log("Connection Replaced, Another New Session Opened, Please Restart Bot");
         process.exit();
@@ -304,13 +316,13 @@ async function startRavenInternal() {
         process.exit();
       } else if (reason === DisconnectReason.restartRequired) {
         console.log("Restart Required, Restarting...");
-        startRaven();
+        scheduleRavenReconnect("restart required");
       } else if (reason === DisconnectReason.timedOut) {
         console.log("Connection TimedOut, Reconnecting...");
-        startRaven();
+        scheduleRavenReconnect("timed out");
       } else {
         console.log(`Unknown DisconnectReason: ${reason}|${connection}`);
-        startRaven();
+        scheduleRavenReconnect("unknown disconnect");
       }
     } else if (connection === "open") {
        console.log(color("Congrats,✅ Black Demon has successfully connected to this server", "green"));
