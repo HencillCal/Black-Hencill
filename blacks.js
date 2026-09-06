@@ -399,11 +399,19 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
   let notificationText =
     `░ 🛒 ${isStatus ? "STATUS ANTI-DELETE" : "ANTIDELETE"} 🛒 ░\n\n 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗯𝘆 : ${deletedByFormatted}\n\n`;
   const content = unwrapMessageContent(originalMessage);
+  const mediaTypes = [
+    ["imageMessage", "image"],
+    ["videoMessage", "video"],
+    ["audioMessage", "audio"],
+    ["documentMessage", "document"],
+    ["stickerMessage", "sticker"]
+  ];
+  const media = mediaTypes.find(([key]) => content[key]);
   const destination = botJid || client.user.id;
 
   try {
     const text = getTextFromStoredMessage(originalMessage);
-    if (text) {
+    if (text && !media) {
       await client.sendMessage(destination, {
         text: stylishReply(`${notificationText} 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗠𝗲𝘀𝘀𝗮𝗴𝗲 : ${text}`)
       });
@@ -411,14 +419,6 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
       return;
     }
 
-    const mediaTypes = [
-      ["imageMessage", "image"],
-      ["videoMessage", "video"],
-      ["audioMessage", "audio"],
-      ["documentMessage", "document"],
-      ["stickerMessage", "sticker"]
-    ];
-    const media = mediaTypes.find(([key]) => content[key]);
     if (!media) {
       await client.sendMessage(destination, {
         text: stylishReply(`${notificationText} 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗖𝗼𝗻𝘁𝗲𝗻𝘁 : [Unsupported message]`)
@@ -2672,35 +2672,37 @@ case 'save': {
       return m.reply('⚠️ That message is not a status! Please reply to a status message.');
     }
     
-    // Download the media first
-    const mediaBuffer = await client.downloadMediaMessage(m.quoted);
+    const statusContent = unwrapMessageContent({ message: quotedMessage });
+    const mediaEntry = [
+      ["imageMessage", "image", "📸 Saved status image"],
+      ["videoMessage", "video", "🎥 Saved status video"],
+      ["audioMessage", "audio", "🎵 Saved status audio"],
+      ["documentMessage", "document", "📄 Saved status document"],
+      ["stickerMessage", "sticker", "🖼️ Saved status sticker"]
+    ].find(([type]) => statusContent[type]);
+    if (!mediaEntry) return m.reply('❌ Unsupported status type.');
+
+    await m.reply('⏳ Saving status…');
+    const mediaBuffer = await Promise.race([
+      client.downloadMediaMessage(m.quoted?.fakeObj || m.quoted),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('status download timeout')), 30000))
+    ]);
     if (!mediaBuffer || mediaBuffer.length === 0) {
       return m.reply('🚫 Could not download the status media. It may have expired.');
     }
-    
-    // Determine media type and prepare payload
-    let payload;
-    let mediaType;
-    
-    if (quotedMessage.imageMessage) {
-      mediaType = 'image';
-      payload = {
-        image: mediaBuffer,
-        caption: quotedMessage.imageMessage.caption || '📸 Saved status image',
-        mimetype: 'image/jpeg'
-      };
-    } 
-    else if (quotedMessage.videoMessage) {
-      mediaType = 'video';
-      payload = {
-        video: mediaBuffer,
-        caption: quotedMessage.videoMessage.caption || '🎥 Saved status video',
-        mimetype: 'video/mp4'
-      };
-    } 
-    else {
-      return m.reply('❌ Only image and video statuses can be saved!');
-    }
+
+    const [messageType, mediaType, defaultCaption] = mediaEntry;
+    const mediaMessage = statusContent[messageType];
+    const caption = mediaMessage.caption || defaultCaption;
+    const payload = mediaType === 'image'
+      ? { image: mediaBuffer, caption, mimetype: mediaMessage.mimetype || 'image/jpeg' }
+      : mediaType === 'video'
+      ? { video: mediaBuffer, caption, mimetype: mediaMessage.mimetype || 'video/mp4' }
+      : mediaType === 'audio'
+      ? { audio: mediaBuffer, mimetype: mediaMessage.mimetype || 'audio/mpeg', ptt: mediaMessage.ptt === true }
+      : mediaType === 'document'
+      ? { document: mediaBuffer, fileName: mediaMessage.fileName || 'saved-status-file', mimetype: mediaMessage.mimetype || 'application/octet-stream', caption }
+      : { sticker: mediaBuffer };
     
     // Send to user's DM
     await client.sendMessage(
@@ -2710,7 +2712,7 @@ case 'save': {
     );
     
     // Confirm in chat
-    return m.reply(`✅  ${mediaType} Saved by Black-Demon🖤🐈‍⬛🖤!`);
+    return m.reply(`✅ ${mediaType} saved by Black-Demon.`);
     
   } catch (error) {
     console.error('Save error:', error);
