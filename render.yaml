@@ -11,5 +11,5 @@ services:
     envVars:
       - key: SESSION
         sync: false  # Don't include the value here, will be entered manually on Render
-      - key: OWNER_NUMBER
+      - key: DEV
         sync: false
