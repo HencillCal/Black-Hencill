@@ -28,7 +28,10 @@ function setSetting(key, value) {
 }
 
 const sessionName = 'session';
-const session = getSetting('SESSION');
+// Panel users can paste the complete session string between these quotes.
+// Leave it empty only when using the SESSION environment variable instead.
+const SESSION_IN_SET_JS = '';
+const session = SESSION_IN_SET_JS.trim() || getSetting('SESSION');
 const autobio = getSetting('AUTOBIO', 'FALSE');
 const autolike = getSetting('AUTOLIKE_STATUS', 'TRUE');
 const autoviewstatus = getSetting('AUTOVIEW_STATUS', 'TRUE');
