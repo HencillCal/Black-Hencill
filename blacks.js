@@ -217,7 +217,12 @@ async function forwardViewOnceToBot(client, message) {
       message.sender,
       message.key.remoteJid?.endsWith("@s.whatsapp.net") ? message.key.remoteJid : ""
     );
-    const senderMention = await formatSenderMention(client, sender);
+    let senderMention = "unknown sender";
+    try {
+      senderMention = await formatSenderMention(client, sender);
+    } catch (identityError) {
+      console.warn("Unable to format view-once sender:", identityError.message);
+    }
     await sendViewOnceCopy(
       client,
       content,
