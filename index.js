@@ -32,7 +32,7 @@ const Events = require('./action/events');
 const authenticationn = require('./action/auth');
 const logger = pino({ level: 'silent' });
 const PhoneNumber = require("awesome-phonenumber");
-const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/ravenexif');
+const { imageToWebp, videoToWebp, writeExifImg, writeExifVid, writeExif } = require('./lib/ravenexif');
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/ravenfunc');
 const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete, getSetting } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
@@ -429,6 +429,16 @@ async function startRavenInternal() {
     }
     await client.sendMessage(jid, { sticker: { url: buffer }, ...options }, { quoted });
     return buffer;
+  };
+
+  client.sendWebpStickerWithMetadata = async (jid, path, quoted, options = {}) => {
+    const buff = Buffer.isBuffer(path) ? path : fs.readFileSync(path);
+    const stickerPath = await writeExif({ mimetype: 'image/webp', data: buff }, options);
+    try {
+      return await client.sendMessage(jid, { sticker: { url: stickerPath } }, { quoted });
+    } finally {
+      await fs.promises.unlink(stickerPath).catch(() => {});
+    }
   };
 
   client.downloadMediaMessage = async (message) => {

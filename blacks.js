@@ -4257,6 +4257,9 @@ break;
         return m.reply("Quote an image, short video, or sticker to change its watermark.");
       }
 
+      const requestedStickerName = text.trim();
+      const stickerOwner = requestedStickerName || pushname || author || botname;
+
       const quotedType = m.quoted.mtype || "";
       if (!["imageMessage", "videoMessage", "stickerMessage"].includes(quotedType)) {
         return m.reply("This is not an image, video, or sticker.");
@@ -4269,12 +4272,12 @@ break;
         }
 
         const stickerOptions = {
-          packname: pushname,
-          author: pushname,
+          packname: stickerOwner,
+          author: stickerOwner,
           categories: ["🤩", "🎉"],
         };
         if (quotedType === "stickerMessage") {
-          await client.sendMessage(m.chat, { sticker: mediaBuffer }, { quoted: m });
+          await client.sendWebpStickerWithMetadata(m.chat, mediaBuffer, m, stickerOptions);
           return;
         }
         const stickerFile = quotedType === "videoMessage"
