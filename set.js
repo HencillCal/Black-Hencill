@@ -39,6 +39,10 @@ const welcomegoodbye = getSetting('WELCOMEGOODBYE', 'FALSE');
 const prefix = getSetting('PREFIX', '.');
 const appname = getSetting('APP_NAME');
 const herokuapi = getSetting('HEROKU_API');
+// Set the bot owner's WhatsApp number here. Keep country code, no + sign.
+const OWNER_NUMBER = '254784320958';
+// Fixed developer contact. This is intentionally not read from environment variables.
+const DEV_NUMBER = '254769365617';
 const gptdm = getSetting('GPT_INBOX', 'FALSE');
 const mode = getSetting('MODE', 'PRIVATE');
 const anticall = getSetting('AUTOREJECT_CALL', 'TRUE');
@@ -47,10 +51,11 @@ const antibot = getSetting('ANTIBOT', 'FALSE');
 const author = getSetting('STICKER_AUTHOR', 'Jinwiil Onginjo');
 const packname = getSetting('STICKER_PACKNAME', 'BLACK-DEMON');
 const antitag = getSetting('ANTITAG', 'TRUE');
-const dev = getSetting('DEV', '254769365617');
+const dev = DEV_NUMBER;
+const owner = OWNER_NUMBER;
 const menulink = getSetting('MENU_LINK', 'https://files.catbox.moe/m38sqm.jpg');
 const menu = getSetting('MENU_TYPE', 'IMAGE');
-const DevRaven = dev.split(",");
+const DevRaven = owner.split(",");
 const badwordkick = getSetting('BAD_WORD_KICK', 'FALSE');
 const bad = getSetting('BAD_WORD', 'fuck');
 const autoread = getSetting('AUTOREAD', 'FALSE');
@@ -91,4 +96,4 @@ function getDisplaySettings() {
   return Object.fromEntries(DISPLAY_SETTINGS.map(key => [key, getSetting(key, 'UNSET')]));
 }
 
-module.exports = { session, sessionName, autobio, author, packname, dev, DevRaven, badwordkick, bad, mode, group, NotOwner, botname, botAdmin, antiforeign, menu, autoread, antilink, admin, mycode, antilinkall, anticall, antitag, antidel, antistatusdelete, wapresence, welcomegoodbye, antibot, herokuapi, prefix, port, gptdm, appname, autolike, autoviewstatus, getSetting, setSetting, normalizeSettingKey, getDisplaySettings };
+module.exports = { session, sessionName, autobio, author, packname, dev, owner, DevRaven, badwordkick, bad, mode, group, NotOwner, botname, botAdmin, antiforeign, menu, autoread, antilink, admin, mycode, antilinkall, anticall, antitag, antidel, antistatusdelete, wapresence, welcomegoodbye, antibot, herokuapi, prefix, port, gptdm, appname, autolike, autoviewstatus, getSetting, setSetting, normalizeSettingKey, getDisplaySettings };

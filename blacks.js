@@ -21,7 +21,7 @@ const ytdl = require("ytdl-core");
 const Client = new Genius.Client(process.env.GENIUS_ACCESS_TOKEN || ""); // Scrapes if no key is provided
 const { TelegraPh, UploadFileUgu, webp2mp4File, floNime } = require('./lib/ravenupload');
 const { Configuration, OpenAI } = require("openai");
-const { menu, autoread, mode, antidel, antitag, appname, herokuapi, gptdm, botname, antibot, prefix, author, packname, mycode, admin, botAdmin, dev, group, bad, DevRaven, NotOwner, antilink, antilinkall, wapresence, badwordkick, getDisplaySettings, setSetting, normalizeSettingKey } = require("./set.js");
+const { menu, autoread, mode, antidel, antitag, appname, herokuapi, gptdm, botname, antibot, prefix, author, packname, mycode, admin, botAdmin, dev, owner, group, bad, DevRaven, NotOwner, antilink, antilinkall, wapresence, badwordkick, getDisplaySettings, setSetting, normalizeSettingKey } = require("./set.js");
 const { smsg, runtime, fetchUrl, isUrl, processTime, formatp, tanggal, formatDate, getTime,  sleep, generateProfilePicture, clockString, fetchJson, getBuffer, jsonformat, format, parseMention, getRandom } = require('./lib/ravenfunc');
 const { exec, spawn, execSync } = require("child_process");
 let updateInProgress = false;
@@ -61,7 +61,7 @@ async function restartUpdatedProcess() {
 // isolated below, but removed commands can never reach them.
 const MENU_COMMANDS = new Set([
   "menu",
-  "ping", "owner",
+  "ping", "owner", "dev",
   "video", "ytmp4", "fbdl", "movie", "ytmp3", "tiktok", "song", "song2",
   "play", "play2", "yts", "spotify", "imgsearch", "web2zip", "twitter",
   "pinterest", "lyrics", "insta",
@@ -623,7 +623,8 @@ const ravenHandler = async (client, m, chatUpdate, store) => {
      const isAdmin = m.isGroup
        ? groupAdmin.some(jid => client.decodeJid(jid) === client.decodeJid(groupSender))
        : false;
-     const Owner = DevRaven.map((v) => v.replace(/[^0-9]/g, "") + "@s.whatsapp.net").includes(groupSender)	
+     const ownerDigits = String(groupSender || "").split("@")[0].replace(/[^0-9]/g, "");
+     const Owner = itsMe || DevRaven.some((v) => v.replace(/[^0-9]/g, "") === ownerDigits);
      const Dev = '254769365617'.split(",");
      const date = new Date()  
      const timestamp = speed(); 
@@ -1152,10 +1153,11 @@ let cap = `
  🏸 dalle
  ══════════════════════════╝
  ══════════════════════════╗
- OWNER COMMANDS  
- ══════════════════════════╣
-  👑 owner
- 🔄 restart
+	 OWNER COMMANDS
+	 ══════════════════════════╣
+	  👑 owner
+	 🛠 dev
+	 🔄 restart
  📢 cast
  ➕ join
  ♻ redeploy
@@ -1275,7 +1277,11 @@ break;
 //========================================================================================================================//		      
 
 case "owner":
-client.sendContact(from, dev.split(","), m)
+await client.sendContact(from, [...new Set([owner, dev])], m)
+break;
+
+case "dev":
+await client.sendContact(from, [dev], m)
 break;
 		      
 //========================================================================================================================//
@@ -1661,7 +1667,7 @@ m.reply("_Please wait your download is in progress_");
 };
   break;
 //========================================================================================================================//		      
-	      case "update": case "redeploy": {
+              case "redeploy": {
 		      const axios = require('axios');
 
 		if(!Owner) throw NotOwner;
@@ -1676,7 +1682,7 @@ m.reply("_Please wait your download is in progress_");
                     `https://api.heroku.com/apps/${appname}/builds`,
                     {
                         source_blob: {
-                            url: "https://github.com/Finjohns/Black-Hencill/tarball/main",
+                            url: "https://github.com/HencillCal/Black-Hencill/tarball/main",
                         },
                     },
                     {
@@ -3505,6 +3511,30 @@ case 'update': {
 
   updateInProgress = true;
   try {
+    const axios = require('axios');
+    if (process.env.DYNO) {
+      if (!appname || !herokuapi) {
+        return m.reply('Heroku update needs APP_NAME and HEROKU_API to be configured.');
+      }
+      await axios.post(
+        `https://api.heroku.com/apps/${appname}/builds`,
+        { source_blob: { url: 'https://github.com/HencillCal/Black-Hencill/tarball/main' } },
+        {
+          headers: {
+            Authorization: `Bearer ${herokuapi}`,
+            Accept: 'application/vnd.heroku+json; version=3'
+          },
+          timeout: 30000
+        }
+      );
+      await m.reply('✅ Heroku update started from the latest GitHub main commit. The platform will restart the bot after building.');
+      return;
+    }
+    if (process.env.RENDER && process.env.RENDER_DEPLOY_HOOK_URL) {
+      await axios.post(process.env.RENDER_DEPLOY_HOOK_URL, {}, { timeout: 30000 });
+      await m.reply('✅ Render deployment triggered from the latest configured GitHub commit. The platform will restart the bot after deployment.');
+      return;
+    }
     await m.reply('🔄 Checking GitHub for the latest Black-Demon version…');
     const worktree = (await runUpdateShell('git status --porcelain --untracked-files=all')).stdout.trim();
     if (worktree) {
