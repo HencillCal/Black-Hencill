@@ -225,7 +225,7 @@ async function forwardViewOnceToBot(client, message) {
     }
     await sendViewOnceCopy(
       client,
-      content,
+      message,
       destination,
       `👁️ View-once message from ${senderMention}`
     );
