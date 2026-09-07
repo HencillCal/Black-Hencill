@@ -25,11 +25,43 @@ const { menu, autoread, mode, antidel, antitag, appname, herokuapi, gptdm, botna
 const { smsg, runtime, fetchUrl, isUrl, processTime, formatp, tanggal, formatDate, getTime,  sleep, generateProfilePicture, clockString, fetchJson, getBuffer, jsonformat, format, parseMention, getRandom } = require('./lib/ravenfunc');
 const { exec, spawn, execSync } = require("child_process");
 let updateInProgress = false;
+let updateRepoRoot = __dirname;
+
+function findUpdateRepoRoot() {
+  const candidates = new Set([
+    __dirname,
+    process.cwd(),
+    process.env.BOT_DIR,
+    process.env.PROJECT_DIR,
+    process.env.RENDER_SOURCE_DIR,
+    "/home/container/Black-Hencill-main",
+    "/home/container/Black-Hencill",
+    "/home/Black-Hencill-main",
+    "/home/Black-Hencill"
+  ].filter(Boolean));
+
+  for (const base of ["/home", "/home/container", process.cwd()]) {
+    try {
+      for (const entry of fs.readdirSync(base, { withFileTypes: true })) {
+        if (entry.isDirectory()) candidates.add(path.join(base, entry.name));
+      }
+    } catch {}
+  }
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(path.join(candidate, ".git")) && fs.existsSync(path.join(candidate, "package.json"))) {
+        return candidate;
+      }
+    } catch {}
+  }
+  return null;
+}
 
 function runUpdateShell(command) {
   return new Promise((resolve, reject) => {
     exec(command, {
-      cwd: __dirname,
+      cwd: updateRepoRoot,
       timeout: 120000,
       maxBuffer: 2 * 1024 * 1024
     }, (error, stdout, stderr) => {
@@ -3534,6 +3566,11 @@ case 'update': {
 
   updateInProgress = true;
   try {
+    const repoRoot = findUpdateRepoRoot();
+    if (!repoRoot) {
+      throw new Error('Bot project directory was not found. Set BOT_DIR to the folder containing .git and package.json.');
+    }
+    updateRepoRoot = repoRoot;
     const axios = require('axios');
     if (process.env.DYNO) {
       if (!appname || !herokuapi) {
