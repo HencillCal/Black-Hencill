@@ -134,14 +134,18 @@ function unwrapMessageContent(message) {
 
 function getViewOnceContent(message) {
   let content = message?.message || message;
-  while (content?.ephemeralMessage?.message) {
-    content = content.ephemeralMessage.message;
+  for (let depth = 0; depth < 8 && content; depth += 1) {
+    if (content.ephemeralMessage?.message) {
+      content = content.ephemeralMessage.message;
+      continue;
+    }
+    const wrapper = content.viewOnceMessage ||
+      content.viewOnceMessageV2 ||
+      content.viewOnceMessageV2Extension;
+    if (wrapper?.message) return unwrapMessageContent(wrapper.message);
+    return null;
   }
-
-  const wrapper = content?.viewOnceMessage ||
-    content?.viewOnceMessageV2 ||
-    content?.viewOnceMessageV2Extension;
-  return wrapper?.message ? unwrapMessageContent(wrapper.message) : null;
+  return null;
 }
 
 function normalizeEditedMessage(message) {
@@ -173,7 +177,7 @@ async function sendViewOnceCopy(client, message, destination, captionPrefix) {
 
   const [messageType, mediaType] = media;
   const mediaMessage = quotedMessage[messageType];
-  const buffer = await downloadStoredMedia(mediaMessage, mediaType);
+  const buffer = await downloadStoredMedia(mediaMessage, mediaType, client);
   const caption = mediaMessage.caption
     ? `${captionPrefix}\n${mediaMessage.caption}`
     : captionPrefix;
@@ -403,7 +407,15 @@ async function formatSenderMention(client, jid) {
   return user ? `@${user}` : "unknown sender";
 }
 
-async function downloadStoredMedia(mediaMessage, mediaType) {
+async function downloadStoredMedia(mediaMessage, mediaType, client) {
+  if (client?.downloadMediaMessage) {
+    try {
+      const downloaded = await client.downloadMediaMessage(mediaMessage);
+      if (downloaded?.length) return downloaded;
+    } catch (error) {
+      console.warn(`Full ${mediaType} download failed; using stream fallback:`, error.message);
+    }
+  }
   const stream = await downloadContentFromMessage(mediaMessage, mediaType);
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
@@ -834,16 +846,22 @@ if (autoread === 'TRUE' && !m.isGroup) {
 //========================================================================================================================//
 
   client.sendContact = async (jid, numbers, quoted, options = {}) => {
-    const contacts = (Array.isArray(numbers) ? numbers : [numbers]).map(number => {
+    const { labels = {}, displayName, ...messageOptions } = options;
+    const contactNumbers = Array.isArray(numbers) ? numbers : [numbers];
+    const contacts = await Promise.all(contactNumbers.map(async number => {
       const phone = String(number).replace(/[^0-9+]/g, "");
+      const label = labels[phone] ||
+        (typeof client.getName === "function"
+          ? await Promise.resolve(client.getName(`${phone}@s.whatsapp.net`))
+          : "") || phone;
       return {
-        displayName: "BLACK-DEMON DEVELOPER",
-        vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:BLACK-DEMON DEVELOPER\nTEL;type=CELL;type=VOICE;waid=${phone}:${phone}\nEND:VCARD`
+        displayName: label,
+        vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:${label}\nTEL;type=CELL;type=VOICE;waid=${phone}:${phone}\nEND:VCARD`
       };
-    });
+    }));
     return client.sendMessage(jid, {
-      contacts: { displayName: "BLACK-DEMON DEVELOPER", contacts },
-      ...options
+      contacts: { displayName: displayName || contacts.map(contact => contact.displayName).join(" and "), contacts },
+      ...messageOptions
     }, { quoted });
   };
 
@@ -1282,11 +1300,11 @@ break;
 //========================================================================================================================//		      
 
 case "owner":
-await client.sendContact(from, [...new Set([owner, dev])], m)
+await client.sendContact(from, [...new Set([owner, dev])], m, { labels: { [dev]: "Dev" } })
 break;
 
 case "dev":
-await client.sendContact(from, [dev], m)
+await client.sendContact(from, [dev], m, { labels: { [dev]: "Dev" } })
 break;
 		      
 //========================================================================================================================//
