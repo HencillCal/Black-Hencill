@@ -211,12 +211,18 @@ async function forwardViewOnceToBot(client, message) {
   if (!destination || message.key.remoteJid === destination) return;
 
   try {
-    const sender = message.key.participant || message.key.remoteJid;
+    const sender = firstJid(
+      message.key.participant,
+      message.participant,
+      message.sender,
+      message.key.remoteJid?.endsWith("@s.whatsapp.net") ? message.key.remoteJid : ""
+    );
+    const senderMention = await formatSenderMention(client, sender);
     await sendViewOnceCopy(
       client,
       content,
       destination,
-      `👁️ View-once message from @${String(sender).split("@")[0]}`
+      `👁️ View-once message from ${senderMention}`
     );
   } catch (error) {
     console.error("Unable to forward view-once message:", error.message);
@@ -435,7 +441,7 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
     revocationMessage.participant,
     revocationMessage.sender,
     deletedKey.participant,
-    remoteJid
+    remoteJid?.endsWith("@s.whatsapp.net") ? remoteJid : ""
   );
   const sentBy = firstJid(
     originalMessage.key?.participant,
