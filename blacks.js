@@ -114,8 +114,21 @@ async function updateFromGitHubArchive(projectRoot, axios) {
   const extractRoot = path.join(tempRoot, "extract");
   fs.mkdirSync(extractRoot, { recursive: true });
   try {
-    const response = await axios.get("https://github.com/HencillCal/Black-Hencill/archive/refs/heads/main.tar.gz", {
-      responseType: "arraybuffer", timeout: 120000, maxContentLength: 50 * 1024 * 1024
+    let commitSha = "";
+    try {
+      const refOutput = await runUpdateShell("git ls-remote https://github.com/HencillCal/Black-Hencill.git refs/heads/main");
+      commitSha = refOutput.stdout.trim().split(/\s+/)[0];
+    } catch {}
+    if (!commitSha) {
+      const refResponse = await axios.get("https://api.github.com/repos/HencillCal/Black-Hencill/git/ref/heads/main", {
+        timeout: 30000, headers: { "User-Agent": "Black-Demon-Updater", "Cache-Control": "no-cache" }
+      });
+      commitSha = refResponse.data?.object?.sha;
+    }
+    if (!commitSha) throw new Error("GitHub did not return the main branch commit SHA.");
+    const response = await axios.get(`https://github.com/HencillCal/Black-Hencill/archive/refs/heads/main.tar.gz?ts=${Date.now()}`, {
+      responseType: "arraybuffer", timeout: 120000, maxContentLength: 50 * 1024 * 1024,
+      headers: { "Cache-Control": "no-cache", "User-Agent": "Black-Demon-Updater" }
     });
     fs.writeFileSync(archivePath, Buffer.from(response.data));
     const tarCommand = 'tar -xzf ' + JSON.stringify(archivePath) + ' -C ' + JSON.stringify(extractRoot);
@@ -129,7 +142,10 @@ async function updateFromGitHubArchive(projectRoot, axios) {
       fs.cpSync(path.join(sourceRoot, name), path.join(projectRoot, name), { recursive: true, force: true });
     }
     updateRepoRoot = projectRoot;
-    return JSON.parse(fs.readFileSync(path.join(sourceRoot, "package.json"), "utf8")).version || "latest";
+    return {
+      commitSha,
+      version: JSON.parse(fs.readFileSync(path.join(sourceRoot, "package.json"), "utf8")).version || "latest"
+    };
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -3696,9 +3712,10 @@ case 'update': {
     updateRepoRoot = projectRoot;
     if (!repoRoot) {
       await m.reply('🔄 This panel deployment has no .git folder. Downloading the latest GitHub files and preserving your session/config…');
-      const version = await updateFromGitHubArchive(projectRoot, axios);
+      const updateInfo = await updateFromGitHubArchive(projectRoot, axios);
+      await m.reply(`✅ GitHub files downloaded successfully.\nCommit: ${updateInfo.commitSha.slice(0, 12)}\nDependencies are installing; the panel will restart the bot shortly.`);
       await runUpdateShell('npm install --omit=dev');
-      await m.reply(`✅ Updated from GitHub archive (${version}). Restarting the bot now…`);
+      await m.reply(`✅ Update complete. Running commit ${updateInfo.commitSha.slice(0, 12)}. Restarting the bot now…`);
       await restartUpdatedProcess();
       return;
     }
