@@ -1638,45 +1638,22 @@ break;
 case "imgsearch":
 case "image": {
   const q = args.join(" ") || (m.quoted && m.quoted.text);
-  if (!q) return reply("❌ Please provide a search query!");
-
+  if (!q) return m.reply("❌ Please provide a search query!");
   await reply("🔍 Searching for images...🔎");
-
   try {
-    const res = await axios.get(
-      `https://api.zenzxz.my.id/api/search/googleimage?query=${encodeURIComponent(q)}`,
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        },
-      }
-    );
-
-    if (!res.data || !res.data.data || res.data.data.length === 0)
-      return reply("❌ No images found.");
-
-    // Pick a random image from the results
-    const img = res.data.data[Math.floor(Math.random() * res.data.data.length)];
-
-    await client.sendMessage(
-      m.chat,
-      {
-        image: { url: img.url },
-        caption: `📸 Details for: *${q}*`,
-      },
-      { quoted: m }
-    );
-  } catch (err) {
-    console.error(err);
-    reply("❌ Failed to fetch images. Try again later.");
+    const response = await axios.get("https://apiskeith2-production-3020.up.railway.app/search/images", { params: { query: q }, timeout: 60000 });
+    const results = response.data?.result || [];
+    const img = results.find(item => item.url || item.image);
+    if (!response.data?.status || !img) throw new Error("No images found");
+    await client.sendMessage(m.chat, { image: { url: img.url || img.image }, caption: "📸 Details for: *" + q + "*" }, { quoted: m });
+  } catch (error) {
+    console.error("image search error:", error);
+    await m.reply("❌ Image search failed: " + error.message);
   }
-
   break;
 }
 //========================================================================================================================//
-		      
-//========================================================================================================================//	
+      case "pair": case "rent":
 case "pair": case "rent": {
 if (!q) return await reply("Boss please reply with your Whtasapp nummer... Example- pair 25476936XXX");
 
@@ -1715,257 +1692,23 @@ break;
 //========================================================================================================================//		      
 //========================================================================================================================//
 	      case "song2": {
-const yts = require("yt-search");
-const fetch = require("node-fetch"); 
-
   try {
-    
-    if (!text) {
-      return m.reply("What song you want to download.");
-    }
-
-    let search = await yts(text);
-    if (!search.all.length) {
-      return sendReply(client, m, "No results found for your query.");
-    }
-    let link = search.all[0].url; 
-
-    const apiUrl = `https://keith-api.vercel.app/download/dlmp3?url=${link}`;
-
-    let response = await fetch(apiUrl);
-    let data = await response.json();
-
-    
-    if (data.status && data.result) {
-      const audioData = {
-        title: data.result.title,
-        downloadUrl: data.result.downloadUrl,
-        thumbnail: search.all[0].thumbnail,
-        format: data.result.format,
-        quality: data.result.quality,
-      };
-
-await client.sendMessage(
-        m.chat,
-        {
-          document: { url: audioData.downloadUrl },
-          mimetype: "audio/mp3",
-	  caption: "BLACK DEMON 😈",
-          fileName: `${audioData.title.replace(/[^a-zA-Z0-9 ]/g, "")}.mp3`,
-        },
-        { quoted: m }
-      );
-
-await client.sendMessage(
-        m.chat,
-        {
-          audio: { url: audioData.downloadUrl },
-          mimetype: "audio/mp4",
-        },
-        { quoted: m }
-      );
-
-      return;
-    } else {
-      
-      return reply("Unable to fetch the song. Please try again later.");
-    }
+    if (!text) return m.reply("What song do you want to download?");
+    await reply("🎧 Searching for the song... ⏳");
+    await sendSearchAudio(client, m.chat, text, m, "song");
   } catch (error) {
-    
-    return reply(`An error occurred: `);
+    console.error("song2 error:", error);
+    await reply("❌ Error downloading audio: " + error.message);
   }
 }
-	break;
-
-
-			  //========================================================================================================================//		      
-
-			 
-// ================= PRIVATE / SELF COMMAND =================
-			  
-			  //========================================================================================================================//		      
+break;
 //========================================================================================================================//
-case "video": {		      
-if (!args || args.length === 0) {
-      return client.sendMessage(from, { text: 'Please provide a video name you want to download.' }, { quoted: m });
-    }
-
-try {
-      const searchQuery = args.join(' ');
-      const videoUrl = await resolveYouTubeUrl(searchQuery);
-      if (!videoUrl) return client.sendMessage(from, { text: 'No results found on YouTube.' }, { quoted: m });
-
-m.reply("_Please wait your download is in progress_");
-
-      const silvaVideo = await fetchYouTubeDownload(videoUrl, "video");
-      return client.sendMessage(from, {
-        video: { url: silvaVideo.url }, mimetype: "video/mp4",
-        fileName: `${silvaVideo.title}.mp4`, caption: "DOWNLOADED BY BLACK DEMON 😈"
-      }, { quoted: m });
-	    
-      const mp4Url = `${BASE_URL}/dipto/ytDl3?link=${encodeURIComponent(videoUrl)}&format=mp4`;
-
-      // Download and send MP4
-      const mp4Response = await axios.get(mp4Url);
-      const mp4Data = mp4Response.data;
-
-      if ((mp4Data.success !== 'true' && mp4Data.success !== true) || !mp4Data.downloadLink) {
-        return sendYouTubeVideoFallback(client, from, videoUrl, m);
-      }
-
-      await client.sendMessage(from, {
-        video: { url: mp4Data.downloadLink },
-        mimetype: 'video/mp4',
-        caption: "DOWNLOADED BY BLACK DEMON 😈",
-      }, { quoted: m });
-    } catch (error) {
-      console.error('Video API failed; trying direct YouTube fallback:', error.message);
-      try {
-        const videoUrl = await resolveYouTubeUrl(args.join(' '));
-        if (!videoUrl) throw new Error('No YouTube result found');
-        await sendYouTubeVideoFallback(client, from, videoUrl, m);
-      } catch (fallbackError) {
-        await client.sendMessage(from, { text: `Video download failed: ${fallbackError.message}` }, { quoted: m });
-      }
-    }
-  }
-  break;
-
-//========================================================================================================================//		      
-   case 'video2': { 
-    if (!text) reply("What video you want to download?");
- 
- try { 
-    let search = await yts(text);
-    if (!search.all.length) reply("No results found for your query.");
-    let link = search.all[0].url; 
-    const apiUrl = `https://apis-keith.vercel.app/download/dlmp4?url=${link}`;
-    let response = await fetch(apiUrl);
-    let data = await response.json();
-
-    if (data.status && data.result) {
-      const videoData = {
-        title: data.result.title,
-        downloadUrl: data.result.downloadUrl,
-        thumbnail: search.all[0].thumbnail,
-        format: data.result.format,
-        quality: data.result.quality,
-      };
-
- await client.sendMessage(
-        m.chat,
-        {
-          video: { url: videoData.downloadUrl },
-          mimetype: "video/mp4",
-          caption: "DOWNLOADED BY BLACK DEMON 😈",
-        },
-        { quoted: m }
-      );
-      return;
-    } else {
-      return reply("Unable to fetch the video. Please try again later.");
-    }
-  } catch (error) {
-    return reply(`An error occurred: ${error.message}`);
-  }
-};
-  break;
-//========================================================================================================================//		      
-              case "redeploy": {
-		      const axios = require('axios');
-
-		if(!Owner) throw NotOwner;
-		     if (!appname || !herokuapi) {
-            await m.reply("It looks like the Heroku app name or API key is not set. Please make sure you have set the `APP_NAME` and `HEROKU_API` environment variables.");
-            return;
-        }
-
-        async function redeployApp() {
-            try {
-                const response = await axios.post(
-                    `https://api.heroku.com/apps/${appname}/builds`,
-                    {
-                        source_blob: {
-                            url: "https://github.com/HencillCal/Black-Hencill/tarball/main",
-                        },
-                    },
-                    {
-                        headers: {
-                            Authorization: `Bearer ${herokuapi}`,
-                            Accept: "application/vnd.heroku+json; version=3",
-                        },
-                    }
-                );
-
-                await m.reply("Your bot is undergoing an upgrade, hold  for the next 2 minutes as the redeploy executes! Once done, you’ll have the freshest version of *Black-Demon* .");
-                console.log("Build details:", response.data);
-            } catch (error) {
-                const errorMessage = error.response?.data || error.message;
-                await m.reply(`Failed to update and redeploy. Please check if you have set the Heroku API key and Heroku app name correctly.`);
-                console.error("Error triggering redeploy:", errorMessage);
-            }
-        }
-
-        redeployApp();
-    }
-	break;
-
-//======================================================================
-
-			    // ================= WEB2ZIP =================
-case 'web2zip': {
-  const axios = require("axios");
-  const fs = require("fs");
-  const path = require("path");
-
-  try {
-    if (!text) return reply("🌐 Please provide a website URL!\n\nExample:\n.web2zip https://jinwiilonginjo.com");
-
-    const apiUrl = `https://api.nekolabs.web.id/tools/web2zip?url=${encodeURIComponent(text)}`;
-    const { data } = await axios.get(apiUrl);
-
-    if (!data.success || !data.result || !data.result.downloadUrl) {
-      return reply("❌ Could not generate ZIP file. Please check the website URL.");
-    }
-
-    const { url, copiedFilesAmount, downloadUrl } = data.result;
-    const zipPath = path.join(__dirname, "temp.zip");
-
-    // Notify user that download is starting
-    await reply(`📦 Generating ZIP from *${url}*...\nPlease wait, downloading...`);
-
-    // Download the ZIP file
-    const response = await axios.get(downloadUrl, { responseType: "arraybuffer" });
-    fs.writeFileSync(zipPath, response.data);
-
-    // Send ZIP as document
-    await client.sendMessage(from, {
-      document: fs.readFileSync(zipPath),
-      mimetype: "application/zip",
-      fileName: `web_snapshot.zip`,
-      caption: `✅ *Website Archived Successfully!*\n\n🌍 *URL:* ${url}\n📂 *Files Saved:* ${copiedFilesAmount}\n🕓 *Processed by:* Black demon bot`
-    }, { quoted: m });
-
-    // Clean up temporary file
-    fs.unlinkSync(zipPath);
-
-  } catch (err) {
-    console.error(err);
-    reply(`💥 Error: ${err.message}`);
-  }
-  break;
+              case "credits": {
+  await m.reply("╔══ BLACK DEMON CREDITS ══╗\n\nOwner: https://github.com/HencillCal\nLibrary: WhiskeySockets Baileys\nhttps://github.com/WhiskeySockets/Baileys\n\nDeveloper: +254769365617\n╚══════════════════════════╝");
 }
-			  
-			  //==================================================//		      
-		      case "credits": 
-  
-              client.sendMessage(m.chat, { image: { url: 'https://files.catbox.moe/m38sqm.jpg' }, caption: stylishReply(`We express sincere gratitude and acknowledgement to the following:\n\n -Dika Ardnt ➪ Indonesia\n - Writing the base code using case method\nhttps://github.com/DikaArdnt\n\n -Adiwajshing ➪ India\n - Writing and Coding the bot's library (baileys)\nhttps://github.com/WhiskeySockets/Baileys\n\n -WAWebSockets Discord Server community\n-Maintaining and reverse engineering the Web Sockets\nhttps://discord.gg/WeJM5FP9GG\n\n - Jinwiil Onginjo➪ Kenya\n - Owner Of the bot \nhttps://github.com/HencillCal\n\n 
- - Nick Hunter ➪ Kenya\n - Actively compiling and debugging parts of this bot script\nhttps://github.com/HunterNick2\n\n - Black Merchant➪ Kenya\n - Compiling and debugging parts of this bot script\nhttps://github.com/Blackie254\n\n - Fortunatus Mokaya ➪ Kenya\n - Founder of the bot Base\nhttps://github.com/Fortunatusmokaya\n\n JINWIILTECH`)}, { quoted: m}); 
-               
-		      break;
+break;
 
-//========================================================================================================================//		      
-	  case 'poll': {
+case 'poll': {
 		  let [poll, opt] = text.split("|")
 
 if (text.split("|") < 2)
