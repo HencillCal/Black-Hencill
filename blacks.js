@@ -54,8 +54,31 @@ async function fetchSilvaYouTubeDownload(url, kind) {
   return { url: downloadUrl, title: result.title || "YouTube download" };
 }
 
+async function fetchYouTubeDownload(url, kind) {
+  const http = require("axios");
+  const route = kind === "audio" ? "audio" : "video";
+  const providers = [
+    async () => {
+      const response = await http.get(`https://apiskeith2-production-3020.up.railway.app/download/${route}`, {
+        params: { url }, timeout: 90000
+      });
+      const mediaUrl = typeof response.data?.result === "string"
+        ? response.data.result
+        : response.data?.result?.url || response.data?.result?.download_url;
+      if (!response.data?.status || !mediaUrl) throw new Error("Keith2 returned no media URL");
+      return { url: mediaUrl, title: "YouTube download" };
+    },
+    () => fetchSilvaYouTubeDownload(url, kind)
+  ];
+  let lastError;
+  for (const provider of providers) {
+    try { return await provider(); } catch (error) { lastError = error; }
+  }
+  throw lastError || new Error(`No ${kind} download provider is available`);
+}
+
 async function sendYouTubeVideoFallback(client, chat, url, quoted) {
-  const media = await fetchSilvaYouTubeDownload(url, "video");
+  const media = await fetchYouTubeDownload(url, "video");
   await client.sendMessage(chat, {
     video: { url: media.url }, mimetype: "video/mp4", fileName: `${media.title}.mp4`,
     caption: "DOWNLOADED BY BLACK DEMON"
@@ -63,7 +86,7 @@ async function sendYouTubeVideoFallback(client, chat, url, quoted) {
 }
 
 async function sendYouTubeAudioFallback(client, chat, url, quoted) {
-  const media = await fetchSilvaYouTubeDownload(url, "audio");
+  const media = await fetchYouTubeDownload(url, "audio");
   await client.sendMessage(chat, {
     audio: { url: media.url }, mimetype: "audio/mpeg", fileName: `${media.title}.mp3`, ptt: false
   }, { quoted });
@@ -1783,7 +1806,7 @@ try {
 
 m.reply("_Please wait your download is in progress_");
 
-      const silvaVideo = await fetchSilvaYouTubeDownload(videoUrl, "video");
+      const silvaVideo = await fetchYouTubeDownload(videoUrl, "video");
       return client.sendMessage(from, {
         video: { url: silvaVideo.url }, mimetype: "video/mp4",
         fileName: `${silvaVideo.title}.mp4`, caption: "DOWNLOADED BY BLACK DEMON 😈"
