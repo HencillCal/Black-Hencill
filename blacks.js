@@ -77,6 +77,16 @@ async function fetchYouTubeDownload(url, kind) {
   throw lastError || new Error(`No ${kind} download provider is available`);
 }
 
+async function sendSearchAudio(client, chat, query, quoted, label) {
+  const url = await resolveYouTubeUrl(query);
+  if (!url) throw new Error("No matching song was found");
+  const media = await fetchYouTubeDownload(url, "audio");
+  const safeTitle = (media.title || label || "song").replace(/[\/:*?"<>|]/g, "_");
+  await client.sendMessage(chat, {
+    audio: { url: media.url }, mimetype: "audio/mpeg", fileName: safeTitle + ".mp3"
+  }, { quoted });
+}
+
 async function sendYouTubeVideoFallback(client, chat, url, quoted) {
   const media = await fetchYouTubeDownload(url, "video");
   await client.sendMessage(chat, {
@@ -1510,135 +1520,37 @@ break;
 	// ================= PLAY2 =================
 case 'play2': {
   try {
-    const axios = require('axios');
     const query = args.join(' ').trim();
-    if (!query) return reply(`⚠️ Usage: .play <song name>\nExample: .play2 Cocoon by Migos`);
-
+    if (!query) return reply("⚠️ Usage: .play2 <song name>");
     await reply('🔎 Searching for your song...🔍');
-
-    const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/play/v1?q=${encodeURIComponent(query)}`;
-    const { data } = await axios.get(apiUrl);
-
-    if (!data?.success || !data.result) {
-      return reply('💥 Could not find the song.');
-    }
-
-    const song = data.result.metadata; // title, channel, duration, cover, url
-    const downloadUrl = data.result.downloadUrl;
-
-    const caption = `🎼 *${song.title}*\n👤 Channel: ${song.channel}\n💿 Duration: ${song.duration}`;
-
-    // Send cover image + info
-    await client.sendMessage(from, {
-      image: { url: song.cover },
-      caption,
-      footer: 'YouTube Downloader'
-    }, { quoted: m });
-
-    // Send audio
-    await client.sendMessage(from, {
-      audio: { url: downloadUrl },
-      mimetype: 'audio/mpeg',
-      fileName: `${song.title}.mp3`
-    }, { quoted: m });
-
+    await sendSearchAudio(client, from, query, m, 'song');
   } catch (err) {
-    console.error('play error:', err);
-    reply(`💥 Error: ${err.message}`);
+    console.error('play2 error:', err);
+    await reply("💥 Download failed: " + err.message);
   }
   break;
 }
             // ================= SPOTIFY =================
 case 'spotify': {
   try {
-    const axios = require('axios');
     const query = args.join(' ').trim();
-    if (!query) return reply(`⚠️ Usage: .spotify <song name>\nExample: .spotify Faded by Alan Walker`);
-
-    await reply('🔎 Searching for your Spotify track...🔍');
-
-    const apiUrl = `https://api.nekolabs.web.id/downloader/spotify/play/v1?q=${encodeURIComponent(query)}`;
-    const { data } = await axios.get(apiUrl);
-
-    if (!data?.success || !data.result) {
-      return reply('💥 Could not find the track.');
-    }
-
-    const track = data.result.metadata;
-    const downloadUrl = data.result.downloadUrl;
-
-    const caption = `🎼 *${track.title}* by *${track.artist}*\n⏱ Duration: ${track.duration}`;
-
-    // Send track cover + info
-    await client.sendMessage(from, {
-      image: { url: track.cover },
-      caption,
-      footer: 'Spotify Downloader'
-    }, { quoted: m });
-
-    // Send the audio file
-    await client.sendMessage(from, {
-      audio: { url: downloadUrl },
-      mimetype: 'audio/mpeg',
-      fileName: `${track.title} - ${track.artist}.mp3`
-    }, { quoted: m });
-
+    if (!query) return reply("⚠️ Usage: .spotify <song name>");
+    await reply('🔎 Searching for your track...🔍');
+    await sendSearchAudio(client, from, query, m, 'spotify-track');
   } catch (err) {
     console.error('spotify error:', err);
-    reply(`💥 Error: ${err.message}`);
+    await reply("💥 Download failed: " + err.message);
   }
   break;
 }
 //========================================================================================================================//
-	
-//========================================================================================================================//
-
-			  //========================================================================================================================//
-	
-//========================================================================================================================//
-
-
-			  //========================================================================================================================//
-	// ================= SONG =================
 case 'song': {
   try {
-    const axios = require('axios');
-    const yts = require('yt-search'); // install yt-search if not already
-
     if (!args.length) return reply("🎵 Provide a song name or link!");
-
-    const query = args.join(" ");
-
-    let videoUrl = query;
-
-    // If it doesn't look like a URL, search YouTube
-    if (!query.startsWith('http')) {
-      const searchResult = await yts(query);
-      if (!searchResult.videos.length) return reply("❌ No results found!");
-      videoUrl = searchResult.videos[0].url; // Take first result
-    }
-
-    // Call your audio-download API
-    const apiUrl = `https://apiskeith.vercel.app/download/audio?url=${encodeURIComponent(videoUrl)}`;
-    const { data } = await axios.get(apiUrl);
-
-    if (!data || !data.status || !data.result) return reply("❌ Failed to get download URL.");
-
-    const audioUrl = data.result;
-
-    // Send the audio
-    await client.sendMessage(
-      m.chat,
-      {
-        audio: { url: audioUrl },
-        mimetype: "audio/mpeg",
-        fileName: "song.mp3"
-      },
-      { quoted: m }
-    );
-  } catch (e) {
-    console.error(e);
-    reply("❌ Error downloading audio.");
+    await sendSearchAudio(client, m.chat, args.join(" "), m, 'song');
+  } catch (error) {
+    console.error('song error:', error);
+    await reply("❌ Error downloading audio: " + error.message);
   }
 }
 break;
@@ -2000,53 +1912,18 @@ let options = []
 //=========================================================================
 			   // ================= PLAY =================
             case 'play': {
-                try {
-                    const tempDir = path.join(__dirname, "temp");
-                    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-
-                    if (!args.length) return reply(`🎵 Provide a song name!\nExample: ${command} Not Like Us`);
-
-                    const query = args.join(" ");
-                    if (query.length > 100) return reply(`📝 Song name too long! Max 100 chars.`);
-
-                    await reply("🎧 Searching for the track... ⏳");
-
-                    const searchResult = await (await yts(`${query} official`)).videos[0];
-                    if (!searchResult) return reply("😕 Couldn't find that song. Try another one!");
-
-                    const video = searchResult;
-                    const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytmp3?url=${encodeURIComponent(video.url)}`;
-                    const response = await axios.get(apiUrl);
-                    const apiData = response.data;
-
-                    if (!apiData.status || !apiData.result || !apiData.result.downloadUrl) throw new Error("API failed to fetch track!");
-
-                    const timestamp = Date.now();
-                    const fileName = `audio_${timestamp}.mp3`;
-                    const filePath = path.join(tempDir, fileName);
-
-                    // Download MP3
-                    const audioResponse = await axios({ method: "get", url: apiData.result.downloadUrl, responseType: "stream", timeout: 600000 });
-                    const writer = fs.createWriteStream(filePath);
-                    audioResponse.data.pipe(writer);
-                    await new Promise((resolve, reject) => { writer.on("finish", resolve); writer.on("error", reject); });
-
-                    if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) throw new Error("Download failed or empty file!");
-
-                    await client.sendMessage(from, { text: stylishReply(`🎧 Playing *${apiData.result.title || video.title}* 🎶`) }, { quoted: m });
-                    await client.sendMessage(from, { audio: { url: filePath }, mimetype: "audio/mpeg", fileName: `${(apiData.result.title || video.title).substring(0, 100)}.mp3` }, { quoted: m });
-
-                    // Cleanup
-                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-
-                } catch (error) {
-                    console.error("Play command error:", error);
-                    return reply(`💥 Error: ${error.message}`);
-                }
-                break;
-            }
-			  //===============================================//		      
-	      case "inspect": {
+  try {
+    const query = args.join(' ').trim();
+    if (!query) return reply("🎵 Provide a song name!");
+    await reply("🎧 Searching for the track... ⏳");
+    await sendSearchAudio(client, from, query, m, 'song');
+  } catch (error) {
+    console.error("play command error:", error);
+    await reply("💥 Download failed: " + error.message);
+  }
+  break;
+}
+case "inspect": {
 		      const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 
