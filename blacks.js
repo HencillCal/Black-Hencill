@@ -28,6 +28,34 @@ let updateInProgress = false;
 let updateRepoRoot = __dirname;
 const forwardedViewOnceIds = new Set();
 
+function extractYouTubeUrl(value) {
+  const match = String(value || "").match(/https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/watch\?[^\s]+|youtu\.be\/[^\s]+|youtube\.com\/(?:shorts|embed)\/[^\s]+)/i);
+  return match ? match[0].replace(/[),]+$/, "") : null;
+}
+
+async function resolveYouTubeUrl(query) {
+  const directUrl = extractYouTubeUrl(query);
+  if (directUrl) return directUrl;
+  const search = await yts(String(query || ""));
+  return search?.videos?.[0]?.url || null;
+}
+
+async function sendYouTubeVideoFallback(client, chat, url, quoted) {
+  await client.sendMessage(chat, {
+    video: ytdl(url, { quality: "18" }),
+    mimetype: "video/mp4",
+    caption: "DOWNLOADED BY BLACK DEMON"
+  }, { quoted });
+}
+
+async function sendYouTubeAudioFallback(client, chat, url, quoted) {
+  await client.sendMessage(chat, {
+    audio: ytdl(url, { filter: "audioonly", quality: "highestaudio" }),
+    mimetype: "audio/mpeg",
+    ptt: false
+  }, { quoted });
+}
+
 function findUpdateRepoRoot() {
   const candidates = new Set([
     __dirname,
@@ -134,7 +162,8 @@ async function gitRefIsAncestor(olderRef, newerRef) {
 }
 
 async function restartUpdatedProcess() {
-  await sleep(500);
+  // Allow Baileys to flush the completion message before the process exits.
+  await sleep(5000);
   process.exit(0);
 }
 
@@ -224,6 +253,9 @@ function getViewOnceContent(message) {
       content.viewOnceMessageV2 ||
       content.viewOnceMessageV2Extension;
     if (wrapper?.message) return unwrapMessageContent(wrapper.message);
+    const mediaKey = ["imageMessage", "videoMessage", "audioMessage", "documentMessage", "stickerMessage"]
+      .find(key => content[key]?.viewOnce === true);
+    if (mediaKey) return { [mediaKey]: content[mediaKey] };
     return null;
   }
   return null;
@@ -298,7 +330,7 @@ async function forwardViewOnceToBot(client, message) {
   if (eventId !== ":") forwardedViewOnceIds.add(eventId);
 
   const destination = client.decodeJid(client.user.id);
-  if (!destination || message.key.remoteJid === destination) return;
+  if (!destination) return;
 
   try {
     const sender = firstJid(
@@ -1717,25 +1749,19 @@ if (!args || args.length === 0) {
 
 try {
       const searchQuery = args.join(' ');
-      const searchResults = await yts(searchQuery);
-      const videos = searchResults.videos;
+      const videoUrl = await resolveYouTubeUrl(searchQuery);
+      if (!videoUrl) return client.sendMessage(from, { text: 'No results found on YouTube.' }, { quoted: m });
 
-      if (!videos || videos.length === 0) {
-        return client.sendMessage(from, { text: 'No results found on YouTube.' }, { quoted: m });
-      }
-	    
 m.reply("_Please wait your download is in progress_");
 	    
-      const video = videos[0];
-      const videoId = video.videoId;
-      const mp4Url = `${BASE_URL}/dipto/ytDl3?link=${videoId}&format=mp4`;
+      const mp4Url = `${BASE_URL}/dipto/ytDl3?link=${encodeURIComponent(videoUrl)}&format=mp4`;
 
       // Download and send MP4
       const mp4Response = await axios.get(mp4Url);
       const mp4Data = mp4Response.data;
 
- if (mp4Data.success !== 'true' || !mp4Data.downloadLink) {
-        return client.sendMessage(chatId, { text: 'Failed to retrieve MP4 download link.' }, { quoted: m });
+      if ((mp4Data.success !== 'true' && mp4Data.success !== true) || !mp4Data.downloadLink) {
+        return sendYouTubeVideoFallback(client, from, videoUrl, m);
       }
 
       await client.sendMessage(from, {
@@ -1744,8 +1770,14 @@ m.reply("_Please wait your download is in progress_");
         caption: "DOWNLOADED BY BLACK DEMON 😈",
       }, { quoted: m });
     } catch (error) {
-      console.error('Error:', error);
-      await client.sendMessage(from, { text: 'An error occurred while processing your request.' }, { quoted: m });
+      console.error('Video API failed; trying direct YouTube fallback:', error.message);
+      try {
+        const videoUrl = await resolveYouTubeUrl(args.join(' '));
+        if (!videoUrl) throw new Error('No YouTube result found');
+        await sendYouTubeVideoFallback(client, from, videoUrl, m);
+      } catch (fallbackError) {
+        await client.sendMessage(from, { text: `Video download failed: ${fallbackError.message}` }, { quoted: m });
+      }
     }
   }
   break;
@@ -4498,21 +4530,11 @@ try {
 
 if (!text) return m.reply("𝗣𝗿𝗼𝘃𝗶𝗱𝗲 𝗮 𝘃𝗮𝗹𝗶𝗱 𝗬𝗼𝘂𝘁𝘂𝗯𝗲 𝗹𝗶𝗻𝗸!")
 
-	let urls = text.match(/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?)([a-zA-Z0-9_-]{11})/gi);
-	if (!urls) return m.reply('𝗧𝗵𝗶𝘀 𝗶𝘀 𝗻𝗼𝘁 𝗮 𝗬𝗼𝘂𝘁𝘂𝗯𝗲 𝗟𝗶𝗻𝗸');
-	let urlIndex = parseInt(text) - 1;
-	if (urlIndex < 0 || urlIndex >= urls.length)
-		return m.reply('𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗟𝗶𝗻𝗸.');
-
-        const { videos } = await yts(text);
-        if (!videos || videos.length === 0) return m.reply("No songs found!");
-
-        const urlYt = videos[0].url;
+		const urlYt = await resolveYouTubeUrl(text);
+		if (!urlYt) return m.reply('𝗡𝗼 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗿𝗲𝘀𝘂𝗹𝘁 𝗳𝗼𝘂𝗻𝗱.');
         let data = await fetchJson(`https://api.dreaded.site/api/ytdl/audio?url=${urlYt}`);
 
-        if (!data || !data.result || !data.result.url) {
-            return m.reply("Failed to fetch audio from the API.");
-        }
+        if (!data || !data.result || !data.result.url) return sendYouTubeAudioFallback(client, m.chat, urlYt, m);
 
         const audioUrl = data.result.url;
 const title = data.result.title;
@@ -4527,7 +4549,13 @@ const title = data.result.title;
             { quoted: m }
         );
     } catch (error) {
-        m.reply("Download failed\n" + error.message);
+        try {
+            const fallbackUrl = await resolveYouTubeUrl(text);
+            if (!fallbackUrl) throw new Error("No YouTube result found");
+            await sendYouTubeAudioFallback(client, m.chat, fallbackUrl, m);
+        } catch (fallbackError) {
+            await m.reply("Download failed\n" + fallbackError.message);
+        }
     }
 }
   break;
@@ -4539,21 +4567,11 @@ case "ytv": {
 
 if (!text) return m.reply("𝗣𝗿𝗼𝘃𝗶𝗱𝗲 𝗮 𝘃𝗮𝗹𝗶𝗱 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗹𝗶𝗻𝗸!")
 
-        let urls = text.match(/(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/|playlist\?list=)?)([a-zA-Z0-9_-]{11})/gi);
-        if (!urls) return m.reply('𝗧𝗵𝗶𝘀 𝗶𝘀 𝗻𝗼𝘁 𝗮 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗹𝗶𝗻𝗸');
-        let urlIndex = parseInt(text) - 1;
-        if (urlIndex < 0 || urlIndex >= urls.length)
-                return m.reply('𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗹𝗶𝗻𝗸.');
-
-        const { videos } = await yts(text);
-        if (!videos || videos.length === 0) return m.reply("No songs found!");
-
-        const urlYt = videos[0].url;
+	        const urlYt = await resolveYouTubeUrl(text);
+	        if (!urlYt) return m.reply('𝗡𝗼 𝗬𝗼𝘂𝗧𝘂𝗯𝗲 𝗿𝗲𝘀𝘂𝗹𝘁 𝗳𝗼𝘂𝗻𝗱.');
         let data = await fetchJson(`https://api.dreaded.site/api/ytdl/video?url=${urlYt}`);
 
-        if (!data || !data.result || !data.result.url) {
-            return m.reply("Failed to fetch video from the API.");
-        }
+        if (!data || !data.result || !data.result.url) return sendYouTubeVideoFallback(client, m.chat, urlYt, m);
 
         const audioUrl = data.result.url;
 const title = data.result.title;
@@ -4563,13 +4581,19 @@ const title = data.result.title;
             m.chat,
             {
                 video: { url: audioUrl },
-                mimetype: "video/mpeg",
+                mimetype: "video/mp4",
                 fileName: `${title}.mp4`,
             },
             { quoted: m }
         );
     } catch (error) {
-        m.reply("Download failed\n" + error.message);
+        try {
+            const fallbackUrl = await resolveYouTubeUrl(text);
+            if (!fallbackUrl) throw new Error("No YouTube result found");
+            await sendYouTubeVideoFallback(client, m.chat, fallbackUrl, m);
+        } catch (fallbackError) {
+            await m.reply("Download failed\n" + fallbackError.message);
+        }
     }
 }        
 break;
