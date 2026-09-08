@@ -40,19 +40,32 @@ async function resolveYouTubeUrl(query) {
   return search?.videos?.[0]?.url || null;
 }
 
+async function fetchSilvaYouTubeDownload(url, kind) {
+  const http = require("axios");
+  const endpoint = kind === "audio" ? "ytmp3" : "ytmp4";
+  const response = await http.get(`https://api.silvatech.co.ke/download/${endpoint}`, {
+    params: { url }, timeout: 90000
+  });
+  const result = response.data?.result || {};
+  const downloadUrl = kind === "audio"
+    ? (result.dl_link || result.download_url || result.url)
+    : (result.download_url || result.dl_link || result.url);
+  if (!response.data?.status || !downloadUrl) throw new Error(`SilvaTech returned no ${kind} download URL`);
+  return { url: downloadUrl, title: result.title || "YouTube download" };
+}
+
 async function sendYouTubeVideoFallback(client, chat, url, quoted) {
+  const media = await fetchSilvaYouTubeDownload(url, "video");
   await client.sendMessage(chat, {
-    video: ytdl(url, { quality: "18" }),
-    mimetype: "video/mp4",
+    video: { url: media.url }, mimetype: "video/mp4", fileName: `${media.title}.mp4`,
     caption: "DOWNLOADED BY BLACK DEMON"
   }, { quoted });
 }
 
 async function sendYouTubeAudioFallback(client, chat, url, quoted) {
+  const media = await fetchSilvaYouTubeDownload(url, "audio");
   await client.sendMessage(chat, {
-    audio: ytdl(url, { filter: "audioonly", quality: "highestaudio" }),
-    mimetype: "audio/mpeg",
-    ptt: false
+    audio: { url: media.url }, mimetype: "audio/mpeg", fileName: `${media.title}.mp3`, ptt: false
   }, { quoted });
 }
 
@@ -1769,6 +1782,12 @@ try {
       if (!videoUrl) return client.sendMessage(from, { text: 'No results found on YouTube.' }, { quoted: m });
 
 m.reply("_Please wait your download is in progress_");
+
+      const silvaVideo = await fetchSilvaYouTubeDownload(videoUrl, "video");
+      return client.sendMessage(from, {
+        video: { url: silvaVideo.url }, mimetype: "video/mp4",
+        fileName: `${silvaVideo.title}.mp4`, caption: "DOWNLOADED BY BLACK DEMON 😈"
+      }, { quoted: m });
 	    
       const mp4Url = `${BASE_URL}/dipto/ytDl3?link=${encodeURIComponent(videoUrl)}&format=mp4`;
 
