@@ -100,6 +100,72 @@ async function sendSearchAudio(client, chat, query, quoted, label) {
   }, { quoted });
 }
 
+async function fetchSocialMedia(url, type) {
+  const http = require("axios");
+  const providers = type === "facebook" ? [
+    async () => {
+      const r = await http.get("https://apis.davidcyril.name.ng/facebook", { params: { url }, timeout: 90000 });
+      const d = r.data?.result?.downloads || {};
+      const mediaUrl = d.hd?.url || d.sd?.url;
+      if (!r.data?.success || !mediaUrl) throw new Error("David Cyril returned no Facebook media");
+      return { kind: "video", url: mediaUrl };
+    },
+    async () => {
+      const r = await http.get("https://apiskeith2-production-3020.up.railway.app/download/fbdown", { params: { url }, timeout: 90000 });
+      const media = r.data?.result?.media || {};
+      const mediaUrl = media.hd || media.sd || r.data?.result?.url;
+      if (!r.data?.status || !mediaUrl) throw new Error("Keith2 returned no Facebook media");
+      return { kind: "video", url: mediaUrl };
+    }
+  ] : type === "tiktok" ? [
+    async () => {
+      const r = await http.get("https://apis.davidcyril.name.ng/download/tiktok", { params: { url }, timeout: 90000 });
+      const mediaUrl = r.data?.result?.video || r.data?.result?.video_hd || r.data?.result?.video_sd;
+      if (!r.data?.success || !mediaUrl) throw new Error("David Cyril returned no TikTok media");
+      return { kind: "video", url: mediaUrl };
+    },
+    async () => {
+      const r = await http.get("https://apiskeith2-production-3020.up.railway.app/download/tiktokdl3", { params: { url }, timeout: 90000 });
+      const mediaUrl = typeof r.data?.result === "string" ? r.data.result : r.data?.result?.url;
+      if (!r.data?.status || !mediaUrl) throw new Error("Keith2 returned no TikTok media");
+      return { kind: "video", url: mediaUrl };
+    }
+  ] : type === "instagram" ? [
+    async () => {
+      const r = await http.get("https://apiskeith2-production-3020.up.railway.app/download/instagramdl", { params: { url }, timeout: 90000 });
+      const mediaUrl = typeof r.data?.result === "string" ? r.data.result : r.data?.result?.url;
+      if (!r.data?.status || !mediaUrl) throw new Error("Keith2 returned no Instagram media");
+      return { kind: "video", url: mediaUrl };
+    },
+    async () => {
+      const r = await http.get("https://apiskeith2-production-3020.up.railway.app/download/instadl", { params: { url }, timeout: 90000 });
+      const mediaUrl = r.data?.download?.video_mp4 || r.data?.result?.video || r.data?.result?.url;
+      if (!r.data?.status || !mediaUrl) throw new Error("Keith2 alternate Instagram route returned no media");
+      return { kind: "video", url: mediaUrl };
+    }
+  ] : [
+    async () => {
+      const r = await http.get("https://apiskeith2-production-3020.up.railway.app/download/pindl3", { params: { url }, timeout: 90000 });
+      const d = r.data?.result || {};
+      if (!r.data?.status || (!d.video && !d.image)) throw new Error("Keith2 returned no Pinterest media");
+      return d.video ? { kind: "video", url: d.video } : { kind: "image", url: d.image };
+    },
+    async () => {
+      const r = await http.get("https://apis.davidcyril.name.ng/download/snapsaver", { params: { url }, timeout: 90000 });
+      const videos = r.data?.result?.videos || [];
+      const imageUrl = r.data?.result?.thumbnail;
+      const mediaUrl = videos[0]?.url || imageUrl;
+      if (!r.data?.success || !mediaUrl) throw new Error("David Cyril returned no Pinterest media");
+      return { kind: videos[0]?.url ? "video" : "image", url: mediaUrl };
+    }
+  ];
+  let lastError;
+  for (const provider of providers) {
+    try { return await provider(); } catch (error) { lastError = error; }
+  }
+  throw lastError || new Error(`No ${type} provider is available`);
+}
+
 async function sendYouTubeVideoFallback(client, chat, url, quoted) {
   const media = await fetchYouTubeDownload(url, "video");
   await client.sendMessage(chat, {
@@ -3725,40 +3791,11 @@ if (users == "254769365617@s.whatsapp.net") return m.reply("It's an Owner Number
 
 //========================================================================================================================//		      
     case "instagram": case "insta": case "igdl": case "ig": {
-		      
-const { igdl } = require("ruhend-scraper");
-
-  if (!text) {
-    return m.reply("Please provide an Instagram link for the video.");
-  }
-
-  if (!text.includes('https://www.instagram.com/')) {
-    return m.reply("That is not a valid Instagram link.");
-  }
-
+  if (!text) return m.reply("Please provide an Instagram link.");
   try {
-    
-    const downloadData = await igdl(text);
-   
-    if (!downloadData || !downloadData.data || downloadData.data.length === 0) {
-      return m.reply("No video found at the provided link.");
-    }
-
-    const videoData = downloadData.data;
-    for (let i = 0; i < Math.min(20, videoData.length); i++) {
-      const video = videoData[i];
-      const videoUrl = video.url;
-
-      await client.sendMessage(m.chat, {
-        video: { url: videoUrl },
-        mimetype: "video/mp4",
-        caption: `DOWNLOADED BY ${botname}`
-      },{ quoted: m });
-    }
-  } catch (error) {
-    console.error(error);
-    return m.reply("An error occurred while processing the request.");
-  }
+    const media = await fetchSocialMedia(text, "instagram");
+    await client.sendMessage(m.chat, media.kind === "image" ? { image: { url: media.url }, caption: "DOWNLOADED BY " + botname } : { video: { url: media.url }, mimetype: "video/mp4", caption: "DOWNLOADED BY " + botname }, { quoted: m });
+  } catch (error) { console.error(error); await m.reply("Instagram download failed: " + error.message); }
 }
 break;
 
@@ -3789,129 +3826,37 @@ m.reply("An error occured. API might be down\n" + e)
 
 //========================================================================================================================//		      
 	 case "fbdl": {
-if (!text) {
-        return m.reply("Provide valid facebook link !");
-    }
-
-    if (!text.includes("facebook.com")) {
-        return m.reply("That is not a facebook link.");
-    }
-
-    try {
-                let data = await fetchJson(`https://api.dreaded.site/api/facebook?url=${text}`);
-
-
-        if (!data || data.status !== 200 || !data.facebook || !data.facebook.sdVideo) {
-            return m.reply("𝗦𝗼𝗿𝗿𝘆 𝘁𝗵𝗲 𝗔𝗣𝗜 𝗱𝗶𝗱𝗻'𝘁 𝗿𝗲𝘀𝗽𝗼𝗻𝗱 𝗰𝗼𝗿𝗿𝗲𝗰𝘁𝗹𝘆. 𝗣𝗹𝗲𝗮𝘀𝗲 𝘁𝗿𝘆 𝗔𝗴𝗮𝗶𝗻 𝗹𝗮𝘁𝗲𝗿!");
-        }
-
-        const fbvid = data.facebook.sdVideo;
-
-        if (!fbvid) {
-            return m.reply("Wrong facebook data. Please ensure the video exists.");
-        }
-
-        await client.sendMessage(
-            m.chat,
-            {
-                video: { url: fbvid },
-                caption: "_Downloaded By Black Demon☯☸_",
-                gifPlayback: false,
-            },
-            { quoted: m }
-        );
-    } catch (e) {
-        console.error("Error occurred:", e);
-        m.reply("An error occurred. API might be down. Error: " + e.message);
-    }
-}
-break;
-
-//========================================================================================================================//		      
-      case "tiktok": {
-if (!text) {
-    return m.reply('Please provide a TikTok video link.');
-  }
-
+  if (!text || !text.includes("facebook.com")) return m.reply("Provide a valid Facebook link.");
   try {
-    const response = await axios.get(`https://bk9.fun/download/tiktok?url=${encodeURIComponent(text)}`);
-
-    if (response.data.status && response.data.BK9) {
-      const videoUrl = response.data.BK9.BK9;
-      const description = response.data.BK9.desc;
-      const commentCount = response.data.BK9.comment_count;
-      const likesCount = response.data.BK9.likes_count;
-      const uid = response.data.BK9.uid;
-      const nickname = response.data.BK9.nickname;
-      const musicTitle = response.data.BK9.music_info.title;
-
-      await client.sendMessage(m.chat, {
-        text: `Data fetched successfully✅ wait a moment. . .`,
-      }, { quoted: m });
-
-      await client.sendMessage(m.chat, {
-        video: { url: videoUrl },
-        caption: "_Downloaded By Black Demon☯☸_",
-        gifPlayback: false
-      }, { quoted: m });
-
-    } else {
-      reply('Failed to retrieve video from the provided link.');
-    }
-
-  } catch (e) {
-    reply(`An error occurred during download: ${e.message}`);
-  }
-}
-  break;
-//========================================================================================================================//
-  case "pinterest":
-	      {      
-	if (!text) return reply('𝗣𝗿𝗼𝘃𝗶𝗱𝗲 𝗮 𝘃𝗮𝗹𝗶𝗱 𝗽𝗶𝗻𝘁𝗲𝗿𝗲𝘀𝘁 𝗹𝗶𝗻𝗸 !');
-		      
-if (!text.includes("pin.it")) {
-        return m.reply("That is not a pinterest link.");
-    }	
-await client.sendMessage(m.chat, {
-      react: { text: '🔄', key: m.key }
-    });
- 
-try {
-        const pinterestUrl = text;
-        const response = await axios.get(`https://bk9.fun/download/pinterest?url=${encodeURIComponent(pinterestUrl)}`);
-
-        if (!response.data.status) {
-            return reply('Unable to fetch pinterest data.');
-        }
-
-        const media = response.data.BK9;
-        const capp = `_Downloaded by Black-Demon☯☸_`;
-
-if (media.length > 0) {
-            const videoUrl = media.find(item => item.url.includes('.mp4'))?.url;
-            const imageUrl = media.find(item => item.url.includes('.jpg'))?.url;
-
-if (videoUrl) {
-                await client.sendMessage(m.chat, { video: { url: videoUrl }, caption: capp }, { quoted: m });
-            } else 
-if (imageUrl) {
-                await client.sendMessage(m.chat, { image: { url: imageUrl }, caption: capp }, { quoted: m });
-            } else {
-                reply('No Video found!');
-            }
-        } else {
-            reply('No Image found.');
-        }
-    } catch (e) {
-        console.error(e);
-        await client.sendMessage(m.chat, { react: { text: '☠️', key: mek.key } });
-        reply('An error occurred while processing your request.');
-    }
+    const media = await fetchSocialMedia(text, "facebook");
+    await client.sendMessage(m.chat, { video: { url: media.url }, mimetype: "video/mp4", caption: "_Downloaded By Black Demon_" }, { quoted: m });
+  } catch (error) { console.error(error); await m.reply("Facebook download failed: " + error.message); }
 }
 break;
-		      
+
 //========================================================================================================================//
-	      case "epl": case "epl-table": {
+      case "tiktok": {
+  if (!text) return m.reply("Please provide a TikTok video link.");
+  try {
+    const media = await fetchSocialMedia(text, "tiktok");
+    await client.sendMessage(m.chat, { video: { url: media.url }, mimetype: "video/mp4", caption: "_Downloaded By Black Demon_" }, { quoted: m });
+  } catch (error) { console.error(error); await m.reply("TikTok download failed: " + error.message); }
+}
+break;
+
+//========================================================================================================================//
+  case "pinterest": {
+  if (!text || !(text.includes("pin.it") || text.includes("pinterest.com"))) return m.reply("Provide a valid Pinterest link.");
+  try {
+    const media = await fetchSocialMedia(text, "pinterest");
+    const message = media.kind === "image" ? { image: { url: media.url }, caption: "_Downloaded by Black-Demon_" } : { video: { url: media.url }, caption: "_Downloaded by Black-Demon_" };
+    await client.sendMessage(m.chat, message, { quoted: m });
+  } catch (error) { console.error(error); await m.reply("Pinterest download failed: " + error.message); }
+}
+break;
+
+//========================================================================================================================//
+      case "epl": case "epl-table": {
 		      
 try {
         const data = await fetchJson('https://api.dreaded.site/api/standings/PL');
