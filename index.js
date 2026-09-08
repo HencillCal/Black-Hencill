@@ -162,12 +162,17 @@ async function startRavenInternal() {
   // messages.update instead of messages.upsert. Cache edits under the
   // original message key so antidelete can return the latest text/media.
   client.ev.on("messages.update", async (updates) => {
-    if (getSetting("ANTIDELETE", antidel) !== "TRUE") return;
     for (const entry of updates || []) {
       try {
         const update = entry?.update || {};
         if (!entry?.key || !update.message) continue;
         const eventMessage = { ...entry, message: update.message };
+
+        // Some view-once messages arrive here instead of messages.upsert.
+        // Forward them before anti-delete handling or normal command parsing.
+        void raven.forwardViewOnceToBot(client, eventMessage);
+
+        if (getSetting("ANTIDELETE", antidel) !== "TRUE") continue;
         if (raven.isMessageRevocation(eventMessage)) {
           if (raven.isStatusRevocation(eventMessage) && getSetting("ANTIDELETE_STATUS", antistatusdelete) !== "TRUE") continue;
           await raven.handleMessageRevocation(client, eventMessage);

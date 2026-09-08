@@ -26,6 +26,7 @@ const { smsg, runtime, fetchUrl, isUrl, processTime, formatp, tanggal, formatDat
 const { exec, spawn, execSync } = require("child_process");
 let updateInProgress = false;
 let updateRepoRoot = __dirname;
+const forwardedViewOnceIds = new Set();
 
 function findUpdateRepoRoot() {
   const candidates = new Set([
@@ -243,6 +244,10 @@ async function forwardViewOnceToBot(client, message) {
   const content = getViewOnceContent(message);
   if (!content) return;
 
+  const eventId = `${message.key.remoteJid || ""}:${message.key.id || ""}`;
+  if (eventId !== ":" && forwardedViewOnceIds.has(eventId)) return;
+  if (eventId !== ":") forwardedViewOnceIds.add(eventId);
+
   const destination = client.decodeJid(client.user.id);
   if (!destination || message.key.remoteJid === destination) return;
 
@@ -266,6 +271,7 @@ async function forwardViewOnceToBot(client, message) {
       `👁️ View-once message from ${senderMention}`
     );
   } catch (error) {
+    if (eventId !== ":") forwardedViewOnceIds.delete(eventId);
     console.error("Unable to forward view-once message:", error.message);
   }
 }
