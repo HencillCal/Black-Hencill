@@ -54,6 +54,18 @@ async function fetchSilvaYouTubeDownload(url, kind) {
   return { url: downloadUrl, title: result.title || "YouTube download" };
 }
 
+async function fetchDavidYouTubeDownload(url, kind) {
+  const http = require("axios");
+  const endpoint = kind === "audio" ? "ytmp3" : "ytmp4";
+  const response = await http.get(`https://apis.davidcyril.name.ng/download/${endpoint}`, {
+    params: { url }, timeout: 90000
+  });
+  const result = response.data?.result || {};
+  const downloadUrl = result.download_url || result.dl_link || result.url;
+  if (!response.data?.success || !downloadUrl) throw new Error(`David Cyril returned no ${kind} download URL`);
+  return { url: downloadUrl, title: result.title || "YouTube download" };
+}
+
 async function fetchYouTubeDownload(url, kind) {
   const http = require("axios");
   const route = kind === "audio" ? "audio" : "video";
@@ -68,6 +80,7 @@ async function fetchYouTubeDownload(url, kind) {
       if (!response.data?.status || !mediaUrl) throw new Error("Keith2 returned no media URL");
       return { url: mediaUrl, title: "YouTube download" };
     },
+    () => fetchDavidYouTubeDownload(url, kind),
     () => fetchSilvaYouTubeDownload(url, kind)
   ];
   let lastError;
