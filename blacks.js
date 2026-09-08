@@ -3713,9 +3713,10 @@ case 'update': {
     if (!repoRoot) {
       await m.reply('🔄 This panel deployment has no .git folder. Downloading the latest GitHub files and preserving your session/config…');
       const updateInfo = await updateFromGitHubArchive(projectRoot, axios);
-      await m.reply(`✅ GitHub files downloaded successfully.\nCommit: ${updateInfo.commitSha.slice(0, 12)}\nDependencies are installing; the panel will restart the bot shortly.`);
-      await runUpdateShell('npm install --omit=dev');
-      await m.reply(`✅ Update complete. Running commit ${updateInfo.commitSha.slice(0, 12)}. Restarting the bot now…`);
+      // This is intentionally sent before npm install: panel process managers
+      // may restart/kill the process while dependencies are being installed.
+      await m.reply(`✅ Update downloaded successfully.\nRunning commit: ${updateInfo.commitSha.slice(0, 12)}\nDependencies will install and the panel will restart the bot shortly.`);
+      await runUpdateShell('npm install --omit=dev --no-audit --no-fund');
       await restartUpdatedProcess();
       return;
     }
