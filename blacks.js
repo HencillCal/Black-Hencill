@@ -258,6 +258,7 @@ async function sendViewOnceCopy(client, message, destination, captionPrefix) {
 
   const [messageType, mediaType] = media;
   const mediaMessage = quotedMessage[messageType];
+  console.log(`[VIEW-ONCE] detected ${mediaType} ${message.key?.id || "unknown"}`);
   const buffer = await downloadStoredMedia(mediaMessage, mediaType, client);
   const caption = mediaMessage.caption
     ? `${captionPrefix}\n${mediaMessage.caption}`
@@ -312,12 +313,14 @@ async function forwardViewOnceToBot(client, message) {
     } catch (identityError) {
       console.warn("Unable to format view-once sender:", identityError.message);
     }
-    await sendViewOnceCopy(
+    const forwarded = await sendViewOnceCopy(
       client,
       message,
       destination,
       `👁️ View-once message from ${senderMention}`
     );
+    if (!forwarded) throw new Error("view-once wrapper contained no supported media");
+    console.log(`[VIEW-ONCE] forwarded ${message.key.id || "unknown"} to owner DM`);
   } catch (error) {
     if (eventId !== ":") forwardedViewOnceIds.delete(eventId);
     console.error("Unable to forward view-once message:", error.message);
@@ -494,18 +497,17 @@ async function formatSenderMention(client, jid) {
 }
 
 async function downloadStoredMedia(mediaMessage, mediaType, client) {
-  if (client?.downloadMediaMessage) {
-    try {
-      const downloaded = await client.downloadMediaMessage(mediaMessage);
-      if (downloaded?.length) return downloaded;
-    } catch (error) {
-      console.warn(`Full ${mediaType} download failed; using stream fallback:`, error.message);
-    }
+  try {
+    const stream = await downloadContentFromMessage(mediaMessage, mediaType);
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const downloaded = Buffer.concat(chunks);
+    if (downloaded.length) return downloaded;
+  } catch (error) {
+    console.warn(`Direct ${mediaType} view-once download failed:`, error.message);
   }
-  const stream = await downloadContentFromMessage(mediaMessage, mediaType);
-  const chunks = [];
-  for await (const chunk of stream) chunks.push(chunk);
-  return Buffer.concat(chunks);
+  if (client?.downloadMediaMessage) return client.downloadMediaMessage(mediaMessage);
+  throw new Error(`Unable to download view-once ${mediaType}`);
 }
 
 function getTextFromStoredMessage(message) {
@@ -657,6 +659,14 @@ const ravenHandler = async (client, m, chatUpdate, store) => {
     const pushname = m.pushName || "No Name";
     const botNumber = await client.decodeJid(client.user.id);
 	const senderJid = m.key.participant || m.key.remoteJid;
+	const senderAlternates = [
+      senderJid,
+      m.key.participantAlt,
+      m.key.remoteJidAlt,
+      m.participant,
+      m.sender
+    ].filter(Boolean);
+	const normalizedSenderJids = await Promise.all(senderAlternates.map(jid => normalizeSenderJid(client, jid)));
     const isOwner = senderJid === botNumber;
     const itsMe = m.sender == botNumber ? true : false;
     let text = (q = args.join(" "));
@@ -727,9 +737,11 @@ const ravenHandler = async (client, m, chatUpdate, store) => {
        ? groupAdmin.some(jid => client.decodeJid(jid) === client.decodeJid(groupSender))
        : false;
      const Dev = '254769365617'.split(",");
-     const senderDigits = String(groupSender || senderJid || m.sender || "").replace(/[^0-9]/g, "");
+     const senderDigitsList = [...senderAlternates, ...normalizedSenderJids]
+       .map(jid => String(jid).split("@")[0].split(":")[0].replace(/[^0-9]/g, ""))
+       .filter(Boolean);
      const ownerDigits = String(groupSender || "").split("@")[0].replace(/[^0-9]/g, "");
-     const isDeveloper = Dev.some((v) => v.replace(/[^0-9]/g, "") === senderDigits);
+     const isDeveloper = Dev.some((v) => senderDigitsList.includes(v.replace(/[^0-9]/g, "")));
      const Owner = itsMe || isDeveloper || DevRaven.some((v) => v.replace(/[^0-9]/g, "") === ownerDigits);
      const date = new Date()  
      const timestamp = speed(); 
