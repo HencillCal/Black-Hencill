@@ -145,18 +145,35 @@ async function startRavenInternal() {
 
       mek.message = Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
             
- if (getSetting("AUTOVIEW_STATUS", autoviewstatus) === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {
-        client.readMessages([mek.key]);
+      const isStatusMessage = mek.key?.remoteJid === "status@broadcast";
+      const statusViewEnabled = String(getSetting("AUTOVIEW_STATUS", autoviewstatus)).toUpperCase() === "TRUE";
+      const statusLikeEnabled = String(getSetting("AUTOLIKE_STATUS", autolike)).toUpperCase() === "TRUE";
+
+      if (statusViewEnabled && isStatusMessage) {
+        await client.readMessages([mek.key]).catch(error => {
+          console.error("Status view failed:", error.message);
+        });
       }
-            
- if (getSetting("AUTOVIEW_STATUS", autoviewstatus) === 'TRUE' && getSetting("AUTOLIKE_STATUS", autolike) === 'TRUE' && mek.key && mek.key.remoteJid === "status@broadcast") {
-        const nickk = await client.decodeJid(client.user.id);
-        const emojis = ['🗿', '⌚️', '💠', '👣', '🍆', '💔', '🤍', '❤️‍🔥', '💣', '🦅', '🌻', '🧊','🧸', '👑', '📍', '😅', '🎭', '🎉', '😳', '💯', '🔥', '💫', '🐒', '💗', '❤️‍🔥', '👁️', '👀', '🙌', '🙆', '🌟', '💧', '🦄', '🎎', '✅', '🥱', '🌚'];
+
+      if (statusLikeEnabled && isStatusMessage) {
+        const statusOwner = mek.key.participant || mek.key.participantAlt;
+        const botJid = await client.decodeJid(client.user.id);
+        const statusJidList = [...new Set([statusOwner, botJid].filter(jid => typeof jid === "string" && jid.includes("@")))];
+        const emojis = ['🗿', '⌚️', '💠', '👣', '💔', '🤍', '❤️‍🔥', '💣', '🦅', '🌻', '🧊', '🧸', '👑', '📍', '😅', '🎉', '💯', '🔥', '💫', '💗', '👁️', '👀', '🙌', '🌟', '💧', '🦄', '✅'];
         const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-        void client.sendMessage(mek.key.remoteJid, { react: { text: randomEmoji, key: mek.key, } }, { statusJidList: [mek.key.participant, nickk] })
-          .then(() => console.log('Reaction sent successfully✅️'))
-          .catch((reactionError) => console.error('Status reaction failed:', reactionError.message));
+        if (!statusJidList.length) {
+          console.error("Status reaction skipped: no status participant or bot JID");
+        } else {
+          try {
+            await client.sendMessage("status@broadcast", {
+              react: { text: randomEmoji, key: mek.key }
+            }, { statusJidList });
+            console.log(`[STATUS] reaction ${randomEmoji} sent to ${statusOwner || "unknown"}`);
+          } catch (reactionError) {
+            console.error("Status reaction failed:", reactionError.message);
           }
+        }
+      }
 
       if (mek.key?.remoteJid === "status@broadcast") {
         return;
