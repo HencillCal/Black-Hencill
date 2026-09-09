@@ -711,7 +711,11 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
     return;
   }
 
+  const revocationContent = unwrapMessageContent(revocationMessage);
   const deletedBy = firstJid(
+    revocationContent?.protocolMessage?.participant,
+    revocationContent?.protocolMessage?.sender,
+    revocationContent?.protocolMessage?.senderKey?.participant,
     revocationMessage.message?.protocolMessage?.participant,
     revocationMessage.message?.protocolMessage?.sender,
     revocationMessage.message?.protocolMessage?.senderKey?.participant,
@@ -769,7 +773,14 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
     const [messageType, mediaType] = media;
     const mediaMessage = content[messageType];
     const buffer = await downloadStoredMedia(mediaMessage, mediaType);
-    notificationText += ` 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗠𝗲𝗱𝗶𝗮 : [${mediaType}]`;
+    const mediaLabel = {
+      image: "image",
+      video: "video",
+      audio: "audio",
+      document: mediaMessage.fileName || "document",
+      sticker: "sticker"
+    }[mediaType] || mediaType;
+    notificationText += ` 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗠𝗲𝗱𝗶𝗮 : [${mediaLabel}]`;
 
     if (mediaType === "image") {
       await client.sendMessage(destination, {
@@ -783,6 +794,9 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
       });
     } else if (mediaType === "audio") {
       await client.sendMessage(destination, {
+        text: stylishReply(notificationText)
+      });
+      await client.sendMessage(destination, {
         audio: buffer,
         ptt: mediaMessage.ptt === true,
         mimetype: mediaMessage.mimetype || "audio/mpeg"
@@ -795,6 +809,9 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
         caption: stylishReply(notificationText)
       });
     } else {
+      await client.sendMessage(destination, {
+        text: stylishReply(notificationText)
+      });
       await client.sendMessage(destination, { sticker: buffer });
     }
     console.log(`Antidelete media sent in ${Date.now() - receivedAt}ms.`);
