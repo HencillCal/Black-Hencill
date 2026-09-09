@@ -772,7 +772,6 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
 
     const [messageType, mediaType] = media;
     const mediaMessage = content[messageType];
-    const buffer = await downloadStoredMedia(mediaMessage, mediaType);
     const mediaLabel = {
       image: "image",
       video: "video",
@@ -781,6 +780,17 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
       sticker: "sticker"
     }[mediaType] || mediaType;
     notificationText += ` 𝗗𝗲𝗹𝗲𝘁𝗲𝗱 𝗠𝗲𝗱𝗶𝗮 : [${mediaLabel}]`;
+
+    // Audio and sticker messages cannot reliably carry a WhatsApp caption.
+    // Send their identity notice before downloading so it is never lost if
+    // media decryption or recovery fails.
+    if (mediaType === "audio" || mediaType === "sticker") {
+      await client.sendMessage(destination, {
+        text: stylishReply(notificationText)
+      });
+    }
+
+    const buffer = await downloadStoredMedia(mediaMessage, mediaType, client);
 
     if (mediaType === "image") {
       await client.sendMessage(destination, {
@@ -794,9 +804,6 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
       });
     } else if (mediaType === "audio") {
       await client.sendMessage(destination, {
-        text: stylishReply(notificationText)
-      });
-      await client.sendMessage(destination, {
         audio: buffer,
         ptt: mediaMessage.ptt === true,
         mimetype: mediaMessage.mimetype || "audio/mpeg"
@@ -809,9 +816,6 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
         caption: stylishReply(notificationText)
       });
     } else {
-      await client.sendMessage(destination, {
-        text: stylishReply(notificationText)
-      });
       await client.sendMessage(destination, { sticker: buffer });
     }
     console.log(`Antidelete media sent in ${Date.now() - receivedAt}ms.`);
