@@ -1600,29 +1600,13 @@ case "idch": case "cekidch": {
       `*Followers:* ${result?.subscribers ?? "Unavailable"}\n` +
       `*Status:* ${result?.state || "Unavailable"}\n` +
       `*Verification:* ${verified}`;
-    const generated = generateWAMessageFromContent(m.chat, {
-      viewOnceMessage: {
-        message: {
-          messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
-          interactiveMessage: {
-            body: { text: details },
-            footer: { text: "BLACK-DEMON" },
-            nativeFlowMessage: {
-              buttons: [{
-                name: "cta_copy",
-                buttonParamsJson: JSON.stringify({
-                  display_text: "Copy channel ID",
-                  copy_code: result?.id || ""
-                })
-              }]
-            }
-          }
-        }
-      }
+    // Do not wrap this in a hand-built interactive/view-once envelope. Some
+    // WhatsApp clients reject that envelope with “This message couldn't
+    // load”. A normal text message is supported everywhere and keeps the
+    // complete ID visible and copyable.
+    await client.sendMessage(m.chat, {
+      text: `${details}\n\n*Copy channel ID:*\n${result?.id || "Unavailable"}`
     }, { quoted: m });
-    await client.relayMessage(generated.key.remoteJid, generated.message, {
-      messageId: generated.key.id
-    });
   } catch (error) {
     console.error("Channel metadata lookup failed:", error.message);
     return reply(`Unable to read channel metadata: ${error.message}`);
