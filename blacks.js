@@ -713,16 +713,15 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
 
   const revocationContent = unwrapMessageContent(revocationMessage);
   const deletedBy = firstJid(
+    revocationMessage.key?.participant,
+    revocationMessage.participant,
+    revocationMessage.sender,
     revocationContent?.protocolMessage?.participant,
     revocationContent?.protocolMessage?.sender,
     revocationContent?.protocolMessage?.senderKey?.participant,
     revocationMessage.message?.protocolMessage?.participant,
     revocationMessage.message?.protocolMessage?.sender,
     revocationMessage.message?.protocolMessage?.senderKey?.participant,
-    revocationMessage.key?.participant,
-    revocationMessage.participant,
-    revocationMessage.sender,
-    deletedKey.participant,
     remoteJid?.endsWith("@s.whatsapp.net") ? remoteJid : ""
   );
   const sentBy = firstJid(
