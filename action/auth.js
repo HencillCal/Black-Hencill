@@ -1,7 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
-const { session } = require("../set.js");
+const readline = require("readline");
+const { session, pairingNumber } = require("../set.js");
 
 const sessionDir = path.resolve(__dirname, "..", "session");
 const credsPath = path.join(sessionDir, "creds.json");
@@ -14,20 +15,41 @@ function hasUsableCredentials() {
     return credentials && typeof credentials === "object" &&
       Object.keys(credentials).length > 0;
   } catch {
-    // The repository contains a one-byte placeholder in some downloads.
-    // Treat it as missing so the SESSION value can replace it.
     return false;
   }
 }
 
+function normalizePairingNumber(value) {
+  const normalized = String(value || "").replace(/[^0-9]/g, "");
+  if (!/^\d{8,15}$/.test(normalized)) return "";
+  return normalized;
+}
+
+function promptForNumber() {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return Promise.resolve("");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => {
+    const ask = () => rl.question(
+      "\nNo session found. Enter the WhatsApp number to link, including country code (example: 2547XXXXXXXX): ",
+      answer => {
+        const normalized = normalizePairingNumber(answer);
+        if (!normalized) {
+          console.log("Invalid number. Use 8–15 digits including the country code.");
+          ask();
+          return;
+        }
+        rl.close();
+        resolve(normalized);
+      }
+    );
+    ask();
+  });
+}
+
 function decodeSession(value) {
   const trimmed = value.trim();
-
-  // Accept Gifted~..., prefixed ..., or an unprefixed base64 payload.
-  // The prefix is only a label; authentication data is decoded locally.
   const payload = trimmed.replace(/^[^:~]+[:~]/, "");
   let encoded;
-
   try {
     encoded = Buffer.from(payload, "base64");
     if (!encoded.length) throw new Error("empty payload");
@@ -36,11 +58,7 @@ function decodeSession(value) {
   }
 
   let json;
-  try {
-    json = zlib.gunzipSync(encoded);
-  } catch {
-    json = encoded;
-  }
+  try { json = zlib.gunzipSync(encoded); } catch { json = encoded; }
 
   try {
     const credentials = JSON.parse(json.toString("utf8"));
@@ -50,24 +68,34 @@ function decodeSession(value) {
     }
     return json;
   } catch {
-    throw new Error(
-      "SESSION could not be decoded. Use the complete Gifted~ session value."
-    );
+    throw new Error("SESSION could not be decoded. Use the complete Gifted~ session value.");
   }
 }
 
 async function authentication() {
-  if (hasUsableCredentials()) return;
+  if (hasUsableCredentials()) return { interactive: false, hasCredentials: true, pairingNumber: "" };
 
-  if (typeof session !== "string" || !session.trim()) {
-    throw new Error("Please add a valid SESSION environment variable.");
+  if (typeof session === "string" && session.trim()) {
+    fs.mkdirSync(sessionDir, { recursive: true });
+    const data = decodeSession(session);
+    fs.writeFileSync(credsPath, data);
+    console.log("Session decoded and connected successfully ✅");
+    return { interactive: false, hasCredentials: true, pairingNumber: "" };
   }
 
   fs.mkdirSync(sessionDir, { recursive: true });
-  const data = decodeSession(session);
-  fs.writeFileSync(credsPath, data);
-
-  console.log("Session decoded and connected successfully ✅");
+  const configured = normalizePairingNumber(pairingNumber);
+  const selected = configured || await promptForNumber();
+  if (selected) {
+    console.log("Pairing number accepted. Do not share the pairing code or QR code.");
+  } else {
+    console.log("No interactive terminal number was provided. QR authentication remains available.");
+    console.log("For non-interactive panels, set PAIRING_NUMBER=2547XXXXXXXX and restart.");
+  }
+  return { interactive: true, hasCredentials: false, pairingNumber: selected };
 }
 
 module.exports = authentication;
+module.exports.hasUsableCredentials = hasUsableCredentials;
+module.exports.normalizePairingNumber = normalizePairingNumber;
+module.exports.decodeSession = decodeSession;

@@ -34,7 +34,7 @@ const logger = pino({ level: 'silent' });
 const PhoneNumber = require("awesome-phonenumber");
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid, writeExif } = require('./lib/ravenexif');
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/ravenfunc');
-const { sessionName, session, autobio, autolike, autorecord, autotyping, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete, getSetting } = require("./set.js");
+const { sessionName, session, pairingCode, qrAuth, autobio, autolike, autorecord, autotyping, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete, getSetting } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
 const store = makeInMemoryStore({ logger: logger.child({ stream: 'store' }) });
 const raven = require("./blacks");
@@ -67,7 +67,7 @@ async function startRaven() {
 }
 
 async function startRavenInternal() {
-  await authenticationn();  
+  const authResult = await authenticationn();
   const { state, saveCreds } = await useMultiFileAuthState("session");
   const { version, isLatest } = await fetchLatestBaileysVersion();
   console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
@@ -85,7 +85,7 @@ async function startRavenInternal() {
 
   const client = ravenConnect({
     logger: pino({ level: "silent" }),
-    printQRInTerminal: true,
+    printQRInTerminal: String(qrAuth).toUpperCase() === "TRUE",
     browser: ["JINWIIL-AI", "Safari", "5.1.7"],
     auth: state,
     // Do not replay the entire WhatsApp history into the command handler.
@@ -93,6 +93,22 @@ async function startRavenInternal() {
     // appear minutes late on low-resource panels.
     syncFullHistory: false,
   });
+
+  let pairingRequested = false;
+  if (authResult?.pairingNumber && String(pairingCode).toUpperCase() === "TRUE" && !state.creds.registered) {
+    try {
+      pairingRequested = true;
+      const code = await client.requestPairingCode(authResult.pairingNumber);
+      console.log("\n════════ WhatsApp pairing code ════════");
+      console.log(`Enter ${code} on the phone for ${authResult.pairingNumber}.`);
+      console.log("WhatsApp → Linked devices → Link with phone number");
+      console.log("QR authentication is also available in the terminal below.");
+      console.log("═══════════════════════════════════════\n");
+    } catch (error) {
+      pairingRequested = false;
+      console.error("Pairing-code request failed; QR authentication remains available:", error.message);
+    }
+  }
 
   if (autobio === 'TRUE') {
     setInterval(() => {

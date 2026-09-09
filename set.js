@@ -32,6 +32,9 @@ const sessionName = 'session';
 // Leave it empty only when using the SESSION environment variable instead.
 const SESSION_IN_SET_JS = '';
 const session = SESSION_IN_SET_JS.trim() || getSetting('SESSION');
+const pairingNumber = getSetting('PAIRING_NUMBER', '');
+const pairingCode = getSetting('PAIRING_CODE', pairingNumber ? 'TRUE' : 'FALSE');
+const qrAuth = getSetting('QR_AUTH', 'TRUE');
 const autobio = getSetting('AUTOBIO', 'FALSE');
 const autolike = getSetting('AUTOLIKE_STATUS', 'FALSE');
 const autoviewstatus = getSetting('AUTOVIEW_STATUS', 'TRUE');
@@ -101,4 +104,4 @@ function getDisplaySettings() {
   return Object.fromEntries(DISPLAY_SETTINGS.map(key => [key, getSetting(key, 'UNSET')]));
 }
 
-module.exports = { session, sessionName, autobio, author, packname, dev, owner, DevRaven, badwordkick, bad, mode, group, NotOwner, botname, botAdmin, antiforeign, menu, autoread, antilink, admin, mycode, antilinkall, anticall, antitag, antidel, antistatusdelete, wapresence, welcomegoodbye, antibot, herokuapi, prefix, port, gptdm, appname, autolike, autoviewstatus, autorecord, autotyping, getSetting, setSetting, normalizeSettingKey, getDisplaySettings };
+module.exports = { session, sessionName, pairingNumber, pairingCode, qrAuth, autobio, author, packname, dev, owner, DevRaven, badwordkick, bad, mode, group, NotOwner, botname, botAdmin, antiforeign, menu, autoread, antilink, admin, mycode, antilinkall, anticall, antitag, antidel, antistatusdelete, wapresence, welcomegoodbye, antibot, herokuapi, prefix, port, gptdm, appname, autolike, autoviewstatus, autorecord, autotyping, getSetting, setSetting, normalizeSettingKey, getDisplaySettings };
