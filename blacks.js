@@ -725,18 +725,7 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
     revocationMessage.message?.protocolMessage?.senderKey?.participant,
     remoteJid?.endsWith("@s.whatsapp.net") ? remoteJid : ""
   );
-  const sentBy = firstJid(
-    originalMessage.key?.participant,
-    originalMessage.participant,
-    originalMessage.key?.remoteJid,
-    remoteJid
-  );
   const botJid = client.decodeJid(client.user.id);
-  const normalizedDeletedBy = await normalizeSenderJid(client, deletedBy);
-  const normalizedSentBy = await normalizeSenderJid(client, sentBy);
-
-  if (areJidsSameUser(normalizedDeletedBy, botJid) ||
-      areJidsSameUser(normalizedSentBy, botJid)) return;
 
   const deletedByFormatted = await formatSenderMention(client, deletedBy);
   const isStatus = remoteJid === "status@broadcast";
