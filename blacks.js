@@ -713,6 +713,7 @@ async function fastHandleMessageRevocation(client, revocationMessage) {
 
   const revocationContent = unwrapMessageContent(revocationMessage);
   const deletedBy = firstJid(
+    revocationMessage.revokedBy,
     revocationMessage.key?.participant,
     revocationMessage.participant,
     revocationMessage.sender,

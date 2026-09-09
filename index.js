@@ -112,6 +112,14 @@ async function startRavenInternal() {
       let mek = originalMessage;
       if (!mek.message) return;
 
+      // Preserve the sender of the revoke event itself. The protocol key
+      // points to the deleted message and can identify its original author,
+      // not the person who performed the deletion.
+      if (raven.isMessageRevocation(mek)) {
+        mek.revokedBy = mek.key?.participant || mek.participant || mek.sender ||
+          (mek.key?.remoteJid?.endsWith("@s.whatsapp.net") ? mek.key.remoteJid : "");
+      }
+
       // Cache before smsg() or command handling can fail. Revoke events must
       // be handled before they are mistaken for ordinary incoming messages.
       if (getSetting("ANTIDELETE", antidel) === "TRUE") {
@@ -167,6 +175,11 @@ async function startRavenInternal() {
         const update = entry?.update || {};
         if (!entry?.key || !update.message) continue;
         const eventMessage = { ...entry, message: update.message };
+
+        if (raven.isMessageRevocation(eventMessage)) {
+          eventMessage.revokedBy = entry.key?.participant || entry.participant || entry.sender ||
+            (entry.key?.remoteJid?.endsWith("@s.whatsapp.net") ? entry.key.remoteJid : "");
+        }
 
         // Some view-once messages arrive here instead of messages.upsert.
         // Forward them before anti-delete handling or normal command parsing.
