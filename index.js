@@ -34,7 +34,7 @@ const logger = pino({ level: 'silent' });
 const PhoneNumber = require("awesome-phonenumber");
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid, writeExif } = require('./lib/ravenexif');
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/ravenfunc');
-const { sessionName, session, autobio, autolike, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete, getSetting } = require("./set.js");
+const { sessionName, session, autobio, autolike, autorecord, autotyping, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete, getSetting } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
 const store = makeInMemoryStore({ logger: logger.child({ stream: 'store' }) });
 const raven = require("./blacks");
@@ -111,6 +111,14 @@ async function startRavenInternal() {
         try {
       let mek = originalMessage;
       if (!mek.message) return;
+
+      if (mek.key?.remoteJid && mek.key.remoteJid !== "status@broadcast") {
+        if (getSetting("AUTORECORD", autorecord) === "TRUE") {
+          void client.sendPresenceUpdate("recording", mek.key.remoteJid).catch(() => {});
+        } else if (getSetting("AUTOTYPING", autotyping) === "TRUE") {
+          void client.sendPresenceUpdate("composing", mek.key.remoteJid).catch(() => {});
+        }
+      }
 
       // Preserve the sender of the revoke event itself. The protocol key
       // points to the deleted message and can identify its original author,

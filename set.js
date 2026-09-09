@@ -35,6 +35,8 @@ const session = SESSION_IN_SET_JS.trim() || getSetting('SESSION');
 const autobio = getSetting('AUTOBIO', 'FALSE');
 const autolike = getSetting('AUTOLIKE_STATUS', 'FALSE');
 const autoviewstatus = getSetting('AUTOVIEW_STATUS', 'TRUE');
+const autorecord = getSetting('AUTORECORD', 'FALSE');
+const autotyping = getSetting('AUTOTYPING', 'FALSE');
 const welcomegoodbye = getSetting('WELCOMEGOODBYE', 'FALSE');
 const prefix = getSetting('PREFIX', '.');
 const appname = getSetting('APP_NAME');
@@ -77,12 +79,15 @@ const SETTING_ALIASES = {
   AUTO_STATUS: 'AUTOVIEW_STATUS',
   AUTOVIEW: 'AUTOVIEW_STATUS',
   AUTO_LIKE: 'AUTOLIKE_STATUS',
+  AUTOLIKE: 'AUTOLIKE_STATUS',
+  AUTO_RECORD: 'AUTORECORD',
+  AUTO_TYPING: 'AUTOTYPING',
   ANTIDELETE_STATUS: 'ANTIDELETE_STATUS',
   ANTISTATUSDELETE: 'ANTIDELETE_STATUS'
 };
 
 const DISPLAY_SETTINGS = [
-  'PREFIX', 'MODE', 'AUTOVIEW_STATUS', 'AUTOLIKE_STATUS', 'ANTIDELETE',
+  'PREFIX', 'MODE', 'AUTOVIEW_STATUS', 'AUTOLIKE_STATUS', 'AUTORECORD', 'AUTOTYPING', 'ANTIDELETE',
   'ANTIDELETE_STATUS', 'AUTOREAD', 'ANTILINK', 'ANTILINK_ALL', 'ANTITAG',
   'AUTOREJECT_CALL', 'WELCOMEGOODBYE', 'GPT_INBOX', 'BAD_WORD_KICK'
 ];
@@ -96,4 +101,4 @@ function getDisplaySettings() {
   return Object.fromEntries(DISPLAY_SETTINGS.map(key => [key, getSetting(key, 'UNSET')]));
 }
 
-module.exports = { session, sessionName, autobio, author, packname, dev, owner, DevRaven, badwordkick, bad, mode, group, NotOwner, botname, botAdmin, antiforeign, menu, autoread, antilink, admin, mycode, antilinkall, anticall, antitag, antidel, antistatusdelete, wapresence, welcomegoodbye, antibot, herokuapi, prefix, port, gptdm, appname, autolike, autoviewstatus, getSetting, setSetting, normalizeSettingKey, getDisplaySettings };
+module.exports = { session, sessionName, autobio, author, packname, dev, owner, DevRaven, badwordkick, bad, mode, group, NotOwner, botname, botAdmin, antiforeign, menu, autoread, antilink, admin, mycode, antilinkall, anticall, antitag, antidel, antistatusdelete, wapresence, welcomegoodbye, antibot, herokuapi, prefix, port, gptdm, appname, autolike, autoviewstatus, autorecord, autotyping, getSetting, setSetting, normalizeSettingKey, getDisplaySettings };

@@ -312,7 +312,8 @@ async function restartUpdatedProcess() {
 // isolated below, but removed commands can never reach them.
 const MENU_COMMANDS = new Set([
   "menu",
-  "ping", "owner", "dev",
+  "ping", "owner", "dev", "idch", "cekidch",
+  "autostatus", "autolike", "autorecord", "autotyping",
   "video", "ytmp4", "fbdl", "movie", "ytmp3", "tiktok", "song", "song2",
   "play", "play2", "yts", "spotify", "imgsearch", "web2zip", "twitter",
   "pinterest", "lyrics", "insta",
@@ -1582,8 +1583,55 @@ case "facts": {
 break;
 //========================================================================================================================//		      
 
-case "owner":
+case "idch": case "cekidch": {
+  if (!text) return reply("Channel link?");
+  const match = text.trim().match(/^https?:\/\/whatsapp\.com\/channel\/([^\s/?#]+)/i);
+  if (!match) return reply("Link must be valid. Example: .idch https://whatsapp.com/channel/xxxxxxxx");
+  if (typeof client.newsletterMetadata !== "function") {
+    return reply("This Baileys version does not support WhatsApp Channel metadata lookup.");
+  }
+
+  try {
+    const result = await client.newsletterMetadata("invite", match[1]);
+    const verified = result?.verification === "VERIFIED" ? "Verified" : "Not verified";
+    const details = `*CHANNEL INFORMATION*\n\n` +
+      `*ID:* ${result?.id || "Unavailable"}\n` +
+      `*Name:* ${result?.name || "Unavailable"}\n` +
+      `*Followers:* ${result?.subscribers ?? "Unavailable"}\n` +
+      `*Status:* ${result?.state || "Unavailable"}\n` +
+      `*Verification:* ${verified}`;
+    const generated = generateWAMessageFromContent(m.chat, {
+      viewOnceMessage: {
+        message: {
+          messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 },
+          interactiveMessage: {
+            body: { text: details },
+            footer: { text: "BLACK-DEMON" },
+            nativeFlowMessage: {
+              buttons: [{
+                name: "cta_copy",
+                buttonParamsJson: JSON.stringify({
+                  display_text: "Copy channel ID",
+                  copy_code: result?.id || ""
+                })
+              }]
+            }
+          }
+        }
+      }
+    }, { quoted: m });
+    await client.relayMessage(generated.key.remoteJid, generated.message, {
+      messageId: generated.key.id
+    });
+  } catch (error) {
+    console.error("Channel metadata lookup failed:", error.message);
+    return reply(`Unable to read channel metadata: ${error.message}`);
+  }
+}
+break;
+case "owner": {
 await client.sendContact(from, [...new Set([owner, dev])], m, { labels: { [dev]: "Dev" } })
+}
 break;
 
 case "dev":
@@ -4545,6 +4593,24 @@ if (!text) return m.reply("No emojis provided ? ")
  break;
 
 //========================================================================================================================//		      
+        case "autostatus": case "autolike": case "autorecord": case "autotyping": {
+          if (!Owner) throw NotOwner;
+          const requested = String(args[0] || "").toLowerCase();
+          if (!/^(on|off|true|false|yes|no)$/i.test(requested)) {
+            return m.reply(`Usage: ${prefix}${command} on|off`);
+          }
+          const settingKey = {
+            autostatus: "AUTOVIEW_STATUS",
+            autolike: "AUTOLIKE_STATUS",
+            autorecord: "AUTORECORD",
+            autotyping: "AUTOTYPING"
+          }[command];
+          const enabled = /^(on|true|yes)$/i.test(requested);
+          const saved = setSetting(settingKey, enabled ? "TRUE" : "FALSE");
+          await m.reply(`✅ ${command} ${saved === "TRUE" ? "ON" : "OFF"}.`);
+        }
+  break;
+//========================================================================================================================//
         case "setvar": {
           if (!Owner) throw NotOwner;
           const separator = text.indexOf("=");
