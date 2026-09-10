@@ -86,7 +86,9 @@ async function startRavenInternal() {
 
   const client = ravenConnect({
     logger: pino({ level: "silent" }),
-    printQRInTerminal: String(qrAuth).toUpperCase() === "TRUE",
+    // QR and phone-number pairing are alternative registration flows. When
+    // a number was supplied, suppress QR so it cannot consume the attempt.
+    printQRInTerminal: !authResult?.pairingNumber && String(qrAuth).toUpperCase() === "TRUE",
     browser: ["JINWIIL-AI", "Safari", "5.1.7"],
     auth: state,
     // Do not replay the entire WhatsApp history into the command handler.
@@ -102,7 +104,7 @@ async function startRavenInternal() {
         console.log("\n════════ WhatsApp pairing code ════════");
         console.log(`Enter ${code} on the phone for ${authResult.pairingNumber}.`);
         console.log("WhatsApp → Linked devices → Link with phone number");
-        console.log("A QR code will also be printed when WhatsApp sends it.");
+        console.log("QR is disabled for this pairing attempt; restart without a number to use QR.");
         console.log("═══════════════════════════════════════\n");
       } catch (error) {
         console.error("Pairing-code request failed; QR authentication remains available:", error.message);
@@ -356,7 +358,7 @@ async function startRavenInternal() {
   client.serializeM = (m) => smsg(client, m, store);
   client.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
-    if (qr && String(qrAuth).toUpperCase() === "TRUE") {
+    if (qr && !authResult?.pairingNumber && String(qrAuth).toUpperCase() === "TRUE") {
       console.log("\n════════ WhatsApp QR code ════════");
       qrcode.generate(qr, { small: true });
       console.log("Scan this QR from WhatsApp → Linked devices.");
@@ -390,6 +392,7 @@ async function startRavenInternal() {
         scheduleRavenReconnect("unknown disconnect");
       }
     } else if (connection === "open") {
+      console.log("✅ WhatsApp credentials are active and saved in session/creds.json.");
        console.log(color("Congrats,✅ Black Demon has successfully connected to this server", "green"));
       console.log(color("Follow me on Instagram,X/Twitter as Jinwiil_Onginjo", "red"));
       console.log(color("Text the bot number with menu to check my command list"));
@@ -415,7 +418,12 @@ async function startRavenInternal() {
     }
   });
 
-  client.ev.on("creds.update", saveCreds);
+  client.ev.on("creds.update", async (update) => {
+    await saveCreds(update);
+    if (authResult?.pairingNumber) {
+      console.log("✅ Pairing credentials update saved to session/creds.json.");
+    }
+  });
  const getBuffer = async (url, options) => {
     try {
       options ? options : {};
