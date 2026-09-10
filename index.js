@@ -22,6 +22,7 @@ const express = require("express");
 const chalk = require("chalk");
 const FileType = require("file-type");
 const figlet = require("figlet");
+const qrcode = require("qrcode-terminal");
 
 const app = express();
 const _ = require("lodash");
@@ -94,20 +95,19 @@ async function startRavenInternal() {
     syncFullHistory: false,
   });
 
-  let pairingRequested = false;
-  if (authResult?.pairingNumber && String(pairingCode).toUpperCase() === "TRUE" && !state.creds.registered) {
-    try {
-      pairingRequested = true;
-      const code = await client.requestPairingCode(authResult.pairingNumber);
-      console.log("\n════════ WhatsApp pairing code ════════");
-      console.log(`Enter ${code} on the phone for ${authResult.pairingNumber}.`);
-      console.log("WhatsApp → Linked devices → Link with phone number");
-      console.log("QR authentication is also available in the terminal below.");
-      console.log("═══════════════════════════════════════\n");
-    } catch (error) {
-      pairingRequested = false;
-      console.error("Pairing-code request failed; QR authentication remains available:", error.message);
-    }
+  if (authResult?.pairingNumber && String(pairingCode).toUpperCase() === "TRUE") {
+    setTimeout(async () => {
+      try {
+        const code = await client.requestPairingCode(authResult.pairingNumber);
+        console.log("\n════════ WhatsApp pairing code ════════");
+        console.log(`Enter ${code} on the phone for ${authResult.pairingNumber}.`);
+        console.log("WhatsApp → Linked devices → Link with phone number");
+        console.log("A QR code will also be printed when WhatsApp sends it.");
+        console.log("═══════════════════════════════════════\n");
+      } catch (error) {
+        console.error("Pairing-code request failed; QR authentication remains available:", error.message);
+      }
+    }, 3000);
   }
 
   if (autobio === 'TRUE') {
@@ -355,7 +355,13 @@ async function startRavenInternal() {
 
   client.serializeM = (m) => smsg(client, m, store);
   client.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+    if (qr && String(qrAuth).toUpperCase() === "TRUE") {
+      console.log("\n════════ WhatsApp QR code ════════");
+      qrcode.generate(qr, { small: true });
+      console.log("Scan this QR from WhatsApp → Linked devices.");
+      console.log("══════════════════════════════════\n");
+    }
     if (connection === "close") {
       let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
       if (reason === DisconnectReason.badSession) {
