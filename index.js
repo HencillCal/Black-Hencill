@@ -84,11 +84,12 @@ async function startRavenInternal() {
     )
   );
 
+  let pairingDisplayCode = "";
   const client = ravenConnect({
     logger: pino({ level: "silent" }),
-    // QR and phone-number pairing are alternative registration flows. When
-    // a number was supplied, suppress QR so it cannot consume the attempt.
-    printQRInTerminal: !authResult?.pairingNumber && String(qrAuth).toUpperCase() === "TRUE",
+    // Keep QR enabled even when a number is supplied: users with one device
+    // can enter the pairing code while users with two devices scan the QR.
+    printQRInTerminal: String(qrAuth).toUpperCase() === "TRUE",
     browser: ["JINWIIL-AI", "Safari", "5.1.7"],
     auth: state,
     // Do not replay the entire WhatsApp history into the command handler.
@@ -98,18 +99,12 @@ async function startRavenInternal() {
   });
 
   if (authResult?.pairingNumber && String(pairingCode).toUpperCase() === "TRUE") {
-    setTimeout(async () => {
-      try {
-        const code = await client.requestPairingCode(authResult.pairingNumber);
-        console.log("\n════════ WhatsApp pairing code ════════");
-        console.log(`Enter ${code} on the phone for ${authResult.pairingNumber}.`);
-        console.log("WhatsApp → Linked devices → Link with phone number");
-        console.log("QR is disabled for this pairing attempt; restart without a number to use QR.");
-        console.log("═══════════════════════════════════════\n");
-      } catch (error) {
-        console.error("Pairing-code request failed; QR authentication remains available:", error.message);
-      }
-    }, 3000);
+    try {
+      pairingDisplayCode = await client.requestPairingCode(authResult.pairingNumber);
+      console.log(`Pairing code ready for ${authResult.pairingNumber}: ${pairingDisplayCode}`);
+    } catch (error) {
+      console.error("Pairing-code request failed; QR authentication remains available:", error.message);
+    }
   }
 
   if (autobio === 'TRUE') {
@@ -358,10 +353,16 @@ async function startRavenInternal() {
   client.serializeM = (m) => smsg(client, m, store);
   client.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
-    if (qr && !authResult?.pairingNumber && String(qrAuth).toUpperCase() === "TRUE") {
+    if (qr && String(qrAuth).toUpperCase() === "TRUE") {
       console.log("\n════════ WhatsApp QR code ════════");
       qrcode.generate(qr, { small: true });
       console.log("Scan this QR from WhatsApp → Linked devices.");
+      if (pairingDisplayCode) {
+        console.log(`Pair code: ${pairingDisplayCode}`);
+        console.log("WhatsApp → Linked devices → Link with phone number");
+      } else if (authResult?.pairingNumber) {
+        console.log("Pair code: generating below the QR when ready...");
+      }
       console.log("══════════════════════════════════\n");
     }
     if (connection === "close") {
