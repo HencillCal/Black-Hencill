@@ -98,14 +98,24 @@ async function startRavenInternal() {
     syncFullHistory: false,
   });
 
-  if (authResult?.pairingNumber && String(pairingCode).toUpperCase() === "TRUE") {
+  let pairingRequestStarted = false;
+  const requestPairingCode = async () => {
+    if (!authResult?.pairingNumber || String(pairingCode).toUpperCase() !== "TRUE" || pairingRequestStarted || pairingDisplayCode) return;
+    pairingRequestStarted = true;
     try {
-      pairingDisplayCode = await client.requestPairingCode(authResult.pairingNumber);
-      console.log(`Pairing code ready for ${authResult.pairingNumber}: ${pairingDisplayCode}`);
+      const code = await client.requestPairingCode(authResult.pairingNumber);
+      if (!code) throw new Error("Baileys returned an empty pairing code");
+      pairingDisplayCode = String(code);
+      console.log("\n════════ WhatsApp pairing code ════════");
+      console.log(`Pair code: ${pairingDisplayCode}`);
+      console.log(`Enter it on the phone for ${authResult.pairingNumber}.`);
+      console.log("WhatsApp → Linked devices → Link with phone number");
+      console.log("═══════════════════════════════════════\n");
     } catch (error) {
+      pairingRequestStarted = false;
       console.error("Pairing-code request failed; QR authentication remains available:", error.message);
     }
-  }
+  };
 
   if (autobio === 'TRUE') {
     setInterval(() => {
@@ -364,6 +374,12 @@ async function startRavenInternal() {
         console.log("Pair code: generating below the QR when ready...");
       }
       console.log("══════════════════════════════════\n");
+      // Baileys is ready for phone-number pairing once this live QR event is
+      // emitted. Requesting earlier can return no code on panel deployments.
+      void requestPairingCode();
+    }
+    if (connection === "connecting" && !qr && authResult?.pairingNumber) {
+      setTimeout(() => void requestPairingCode(), 1000);
     }
     if (connection === "close") {
       let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
