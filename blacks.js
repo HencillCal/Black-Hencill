@@ -28,6 +28,45 @@ let updateInProgress = false;
 let updateRepoRoot = __dirname;
 const forwardedViewOnceIds = new Set();
 
+const FANCY_MAPS = [
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫"],
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙𝐚𝐛𝐜𝐝𝐞𝐟𝐠𝐡𝐢𝐣𝐤𝐥𝐦𝐧𝐨𝐩𝐪𝐫𝐬𝐭𝐮𝐯𝐰𝐱𝐲𝐳"],
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻"],
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝙰𝙱𝙲𝙳𝙴𝙵𝙶𝙷𝙸𝙹𝙺𝙻𝙼𝙽𝙾𝙿𝚀𝚁𝚂𝚃𝚄𝚅𝚆𝚇𝚈𝚉𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣"],
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ"],
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "🅰️🅱️©️🆑🅳🅴🅵🅶🅷🅸🅹🅺🅻🅼🅽🅾️🅿️🆀🆁🆂🆃🆄🆅🆆🆇🆈🆉ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ"]
+];
+const FANCY_FRAMES = [
+  ["✨ ", " ✨"], ["🔥 ", " 🔥"], ["💙 ", " 💙"], ["💚 ", " 💚"], ["💜 ", " 💜"],
+  ["🌈 ", " 🌈"], ["『", "』"], ["【", "】"], ["꧁", "꧂"], ["༺", "༻"]
+];
+
+function fancyTransform(value, map) {
+  const [from, to] = map;
+  return [...String(value)].map(char => {
+    const index = from.indexOf(char);
+    return index >= 0 ? [...to][index] || char : char;
+  }).join("");
+}
+
+function makeFancyStyles(value) {
+  const styles = [];
+  for (const map of FANCY_MAPS) {
+    for (const [left, right] of FANCY_FRAMES) {
+      styles.push(`${left}${fancyTransform(value, map)}${right}`);
+    }
+  }
+  return styles;
+}
+
+function targetJidFromCommand(message, rawText, client) {
+  const mentioned = Array.isArray(message.mentionedJid) ? message.mentionedJid[0] : null;
+  const quoted = message.quoted?.sender;
+  const digits = String(rawText || "").match(/\d{8,15}/)?.[0];
+  const target = mentioned || quoted || (digits ? `${digits}@s.whatsapp.net` : "");
+  return target ? client.decodeJid(target) : "";
+}
+
 function extractYouTubeUrl(value) {
   const match = String(value || "").match(/https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/watch\?[^\s]+|youtu\.be\/[^\s]+|youtube\.com\/(?:shorts|embed)\/[^\s]+)/i);
   return match ? match[0].replace(/[),]+$/, "") : null;
@@ -331,7 +370,7 @@ const MENU_COMMANDS = new Set([
   "removebg", "tts", "facts", "quotes", "inspect", "github",
   "advice", "remin", "trt", "catfact", "pickupline",
   "cat", "golg", "child",
-  "pair", "credits", "upload", "attp", "url", "fancy", "image", "system",
+  "pair", "credits", "upload", "attp", "url", "fancy", "getdp", "image", "system",
   "jinwiilvmd"
 ]);
 
@@ -3216,19 +3255,10 @@ case "kill": case "kickall": {
 break;
 
 //========================================================================================================================//		      
-  case "fancy": {
-    if (!text) return m.reply(`Usage: ${prefix}fancy your text`);
-    const boldAlphabet = "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ";
-    const boldLower = "𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫";
-    const fancyText = [...text].map(char => {
-      const upper = char.toUpperCase();
-      const upperIndex = upper.charCodeAt(0) - 65;
-      const lowerIndex = char.charCodeAt(0) - 97;
-      return upperIndex >= 0 && upperIndex < 26
-        ? (char === upper ? boldAlphabet[upperIndex] : boldLower[lowerIndex])
-        : char;
-    }).join("");
-    await m.reply(fancyText);
+	  case "fancy": {
+	    if (!text) return m.reply(`Usage: ${prefix}fancy your text`);
+	    const styles = makeFancyStyles(text);
+	    await m.reply(`✨ Fancy styles for: ${text}\n\n${styles.map((style, index) => `${index + 1}. ${style}`).join("\n")}`);
   }
   break;
 
@@ -4624,23 +4654,23 @@ if (!text) return m.reply("No emojis provided ? ")
  break;
  
 //========================================================================================================================//
-case "block": { 
- if (!Owner) throw NotOwner; 
- if (!m.quoted) throw `𝗧𝗮𝗴 𝘀𝗼𝗺𝗲𝗼𝗻𝗲!`  
- let users = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : text.replace(/[^0-9]/g, '')+'@s.whatsapp.net'
-	 if (users == "254769365617@s.whatsapp.net") return m.reply("𝗜 𝗰𝗮𝗻𝗻𝗼𝘁 𝗯𝗹𝗼𝗰𝗸 𝗺𝘆 𝗢𝘄𝗻𝗲𝗿 😡");
-		  if (users  == client.decodeJid(client.user.id)) throw '𝗜 𝗰𝗮𝗻𝗻𝗼𝘁 𝗯𝗹𝗼𝗰𝗸 𝗺𝘆𝘀𝗲𝗹𝗳 𝗶𝗱𝗶𝗼𝘁 😡';
- await client.updateBlockStatus(users, 'block'); 
- m.reply (`𝗕𝗹𝗼𝗰𝗸𝗲𝗱 𝘀𝘂𝗰𝗰𝗲𝘀𝗳𝘂𝗹𝗹𝘆!`); 
+case "block": {
+	 if (!Owner) throw NotOwner;
+	 let users = targetJidFromCommand(m, text, client);
+	 if (!users) return m.reply(`Usage: ${prefix}block 2547XXXXXXXX, mention someone, or quote their message.`);
+	 if (users === client.decodeJid(`${dev}@s.whatsapp.net`)) return m.reply("𝗜 𝗰𝗮𝗻𝗻𝗼𝘁 𝗯𝗹𝗼𝗰𝗸 𝗺𝘆 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿 😡");
+	 if (users === client.decodeJid(client.user.id)) throw '𝗜 𝗰𝗮𝗻𝗻𝗼𝘁 𝗯𝗹𝗼𝗰𝗸 𝗺𝘆𝘀𝗲𝗹𝗳 😡';
+	 await client.updateBlockStatus(users, 'block');
+	 await m.reply(`𝗕𝗹𝗼𝗰𝗸𝗲𝗱 𝘀𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆!\n${users.split('@')[0]}`);
  } 
  break; 
 
 //========================================================================================================================//		      
- case "unblock": { 
- if (!Owner) throw NotOwner; 
- if (!m.quoted) throw `𝗧𝗮𝗴 𝘀𝗼𝗺𝗲𝗼𝗻𝗲!`; 
- let users = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : text.replace(/[^0-9]/g, '')+'@s.whatsapp.net'; 
- await client.updateBlockStatus(users, 'unblock'); 
+ case "unblock": {
+	 if (!Owner) throw NotOwner;
+	 let users = targetJidFromCommand(m, text, client);
+	 if (!users) return m.reply(`Usage: ${prefix}unblock 2547XXXXXXXX, mention someone, or quote their message.`);
+	 await client.updateBlockStatus(users, 'unblock');
  m.reply (`𝗨𝗻𝗯𝗹𝗼𝗰𝗸𝗲𝗱 𝘀𝘂𝗰𝗰𝗲𝘀𝗳𝘂𝗹𝗹𝘆✅!`); 
  } 
  break;
@@ -4700,7 +4730,22 @@ case "block": {
 break;
 
 //========================================================================================================================//		      
-	      case 'gcprofile': {
+      case "getdp": {
+        const target = targetJidFromCommand(m, text, client) || m.chat;
+        try {
+          const picture = await client.profilePictureUrl(target, "image");
+          const contactName = await Promise.resolve(client.getName(target)).catch(() => target.split("@")[0]);
+          await client.sendMessage(m.chat, {
+            image: { url: picture },
+            caption: `🖼️ Profile picture\nName: ${contactName}\nNumber: ${target.split("@")[0]}`
+          }, { quoted: m });
+        } catch (error) {
+          await m.reply(`No public profile picture is available for ${target.split("@")[0]}.`);
+        }
+      }
+      break;
+
+      case 'gcprofile': {
  function convertTimestamp(timestamp) {
   const d = new Date(timestamp * 1000);
   const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
