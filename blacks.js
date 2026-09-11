@@ -27,6 +27,7 @@ const { exec, spawn, execSync } = require("child_process");
 let updateInProgress = false;
 let updateRepoRoot = __dirname;
 const forwardedViewOnceIds = new Set();
+const viewOnceForwardPromises = new Map();
 
 const FANCY_MAPS = [
   ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫"],
@@ -424,22 +425,28 @@ function unwrapMessageContent(message) {
 }
 
 function getViewOnceContent(message) {
-  let content = message?.message || message;
-  for (let depth = 0; depth < 8 && content; depth += 1) {
-    if (content.ephemeralMessage?.message) {
-      content = content.ephemeralMessage.message;
-      continue;
+  const mediaKeys = ["imageMessage", "videoMessage", "audioMessage", "documentMessage", "stickerMessage"];
+  const root = message?.message || message;
+  const visited = new Set();
+  const walk = (value, depth = 0) => {
+    if (!value || typeof value !== "object" || depth > 14 || visited.has(value)) return null;
+    visited.add(value);
+    for (const key of mediaKeys) {
+      const media = value[key];
+      if (media && (media.viewOnce === true || depth > 0)) return { [key]: media };
     }
-    const wrapper = content.viewOnceMessage ||
-      content.viewOnceMessageV2 ||
-      content.viewOnceMessageV2Extension;
-    if (wrapper?.message) return unwrapMessageContent(wrapper.message);
-    const mediaKey = ["imageMessage", "videoMessage", "audioMessage", "documentMessage", "stickerMessage"]
-      .find(key => content[key]?.viewOnce === true);
-    if (mediaKey) return { [mediaKey]: content[mediaKey] };
+    for (const key of [
+      "ephemeralMessage", "viewOnceMessage", "viewOnceMessageV2",
+      "viewOnceMessageV2Extension", "documentWithCaptionMessage",
+      "deviceSentMessage", "editedMessage", "message"
+    ]) {
+      const nested = value[key];
+      const result = walk(nested?.message || nested, depth + 1);
+      if (result) return result;
+    }
     return null;
-  }
-  return null;
+  };
+  return walk(root);
 }
 
 function normalizeEditedMessage(message) {
@@ -508,12 +515,15 @@ async function forwardViewOnceToBot(client, message) {
 
   const eventId = `${message.key.remoteJid || ""}:${message.key.id || ""}`;
   if (eventId !== ":" && forwardedViewOnceIds.has(eventId)) return;
-  if (eventId !== ":") forwardedViewOnceIds.add(eventId);
+  if (eventId !== ":" && viewOnceForwardPromises.has(eventId)) {
+    return viewOnceForwardPromises.get(eventId);
+  }
 
   const destination = client.decodeJid(client.user.id);
   if (!destination) return;
 
-  try {
+  const forwarding = (async () => {
+    try {
     const sender = firstJid(
       message.key.participant,
       message.participant,
@@ -526,18 +536,25 @@ async function forwardViewOnceToBot(client, message) {
     } catch (identityError) {
       console.warn("Unable to format view-once sender:", identityError.message);
     }
-    const forwarded = await sendViewOnceCopy(
-      client,
-      message,
-      destination,
-      `👁️ View-once message from ${senderMention}`
-    );
-    if (!forwarded) throw new Error("view-once wrapper contained no supported media");
-    console.log(`[VIEW-ONCE] forwarded ${message.key.id || "unknown"} to owner DM`);
-  } catch (error) {
-    if (eventId !== ":") forwardedViewOnceIds.delete(eventId);
-    console.error("Unable to forward view-once message:", error.message);
+      const forwarded = await sendViewOnceCopy(
+        client,
+        message,
+        destination,
+        `👁️ View-once message from ${senderMention}`
+      );
+      if (!forwarded) throw new Error("view-once wrapper contained no supported media");
+      if (eventId !== ":") forwardedViewOnceIds.add(eventId);
+      console.log(`[VIEW-ONCE] forwarded ${message.key.id || "unknown"} to owner DM`);
+    } catch (error) {
+      console.error("Unable to forward view-once message:", error.message);
+      throw error;
+    }
+  })();
+  if (eventId !== ":") {
+    viewOnceForwardPromises.set(eventId, forwarding);
+    forwarding.finally(() => viewOnceForwardPromises.delete(eventId)).catch(() => {});
   }
+  return forwarding.catch(() => undefined);
 }
 
 function normalizeUploadResult(result) {
@@ -710,17 +727,23 @@ async function formatSenderMention(client, jid) {
 }
 
 async function downloadStoredMedia(mediaMessage, mediaType, client) {
-  try {
-    const stream = await downloadContentFromMessage(mediaMessage, mediaType);
-    const chunks = [];
-    for await (const chunk of stream) chunks.push(chunk);
-    const downloaded = Buffer.concat(chunks);
-    if (downloaded.length) return downloaded;
-  } catch (error) {
-    console.warn(`Direct ${mediaType} view-once download failed:`, error.message);
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const stream = await downloadContentFromMessage(mediaMessage, mediaType);
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const downloaded = Buffer.concat(chunks);
+      if (downloaded.length) return downloaded;
+      lastError = new Error("empty media stream");
+    } catch (error) {
+      lastError = error;
+      console.warn(`Direct ${mediaType} view-once download attempt ${attempt} failed:`, error.message);
+      if (attempt < 2) await sleep(250);
+    }
   }
   if (client?.downloadMediaMessage) return client.downloadMediaMessage(mediaMessage);
-  throw new Error(`Unable to download view-once ${mediaType}`);
+  throw new Error(`Unable to download view-once ${mediaType}: ${lastError?.message || "unknown error"}`);
 }
 
 function getTextFromStoredMessage(message) {
