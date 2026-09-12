@@ -35,11 +35,11 @@ const FANCY_MAPS = [
   ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻"],
   ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝙰𝙱𝙲𝙳𝙴𝙵𝙶𝙷𝙸𝙹𝙺𝙻𝙼𝙽𝙾𝙿𝚀𝚁𝚂𝚃𝚄𝚅𝚆𝚇𝚈𝚉𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣"],
   ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ"],
-  ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "🅰️🅱️©️🆑🅳🅴🅵🅶🅷🅸🅹🅺🅻🅼🅽🅾️🅿️🆀🆁🆂🆃🆄🆅🆆🆇🆈🆉ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ"]
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝖠𝖡𝖢𝖣𝖤𝖥𝖦𝖧𝖨𝖩𝖪𝖫𝖬𝖭𝖮𝖯𝖰𝖱𝖲𝖳𝖴𝖵𝖶𝖷𝖸𝖹𝖺𝖻𝖼𝖽𝖾𝖿𝗀𝗁𝗂𝗃𝗄𝗅𝗆𝗇𝗈𝗉𝗊𝗋𝗌𝗍𝗎𝗏𝗐𝗑𝗒𝗓"]
 ];
 const FANCY_FRAMES = [
-  ["✨ ", " ✨"], ["🔥 ", " 🔥"], ["💙 ", " 💙"], ["💚 ", " 💚"], ["💜 ", " 💜"],
-  ["🌈 ", " 🌈"], ["『", "』"], ["【", "】"], ["꧁", "꧂"], ["༺", "༻"]
+  ["", ""], ["『", "』"], ["【", "】"], ["꧁", "꧂"], ["༺", "༻"],
+  ["〈", "〉"], ["《", "》"], ["「", "」"], ["╭─ ", " ─╮"], ["┏━ ", " ━┓"]
 ];
 
 function fancyTransform(value, map) {
@@ -3281,7 +3281,7 @@ break;
 	  case "fancy": {
 	    if (!text) return m.reply(`Usage: ${prefix}fancy your text`);
 	    const styles = makeFancyStyles(text);
-	    await m.reply(`✨ Fancy styles for: ${text}\n\n${styles.map((style, index) => `${index + 1}. ${style}`).join("\n")}`);
+    await m.reply(`Fancy styles for: ${text}\n\n${styles.map((style, index) => `${index + 1}. ${style}`).join("\n")}`);
   }
   break;
 

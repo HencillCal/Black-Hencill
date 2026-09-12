@@ -179,19 +179,17 @@ async function startRavenInternal() {
       }
 
       if (statusLikeEnabled && isStatusMessage) {
-        const statusOwner = mek.key.participant || mek.key.participantAlt;
+        const statusOwner = mek.key.participant || mek.key.participantAlt ||
+          mek.participant || mek.participantAlt || mek.key.senderPn || mek.key.senderLid;
         const botJid = await client.decodeJid(client.user.id);
         const statusJidList = [...new Set([statusOwner, botJid].filter(jid => typeof jid === "string" && jid.includes("@")))];
-        const emojis = ['🗿', '⌚️', '💠', '👣', '💔', '🤍', '❤️‍🔥', '💣', '🦅', '🌻', '🧊', '🧸', '👑', '📍', '😅', '🎉', '💯', '🔥', '💫', '💗', '👁️', '👀', '🙌', '🌟', '💧', '🦄', '✅'];
-        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
         if (!statusJidList.length) {
           console.error("Status reaction skipped: no status participant or bot JID");
         } else {
           try {
             await client.sendMessage("status@broadcast", {
-              react: { text: randomEmoji, key: mek.key }
+              react: { text: "❤️", key: mek.key }
             }, { statusJidList });
-            console.log(`[STATUS] reaction ${randomEmoji} sent to ${statusOwner || "unknown"}`);
           } catch (reactionError) {
             console.error("Status reaction failed:", reactionError.message);
           }
