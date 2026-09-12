@@ -23,6 +23,7 @@ const { TelegraPh, UploadFileUgu, webp2mp4File, floNime } = require('./lib/raven
 const { Configuration, OpenAI } = require("openai");
 const { menu, autoread, mode, antidel, antitag, appname, herokuapi, gptdm, botname, antibot, prefix, author, packname, mycode, admin, botAdmin, dev, owner, group, bad, DevRaven, NotOwner, antilink, antilinkall, wapresence, badwordkick, getDisplaySettings, setSetting, normalizeSettingKey } = require("./set.js");
 const { smsg, runtime, fetchUrl, isUrl, processTime, formatp, tanggal, formatDate, getTime,  sleep, generateProfilePicture, clockString, fetchJson, getBuffer, jsonformat, format, parseMention, getRandom } = require('./lib/ravenfunc');
+const { startGiftedPairing } = require('./lib/giftedPair');
 const { exec, spawn, execSync } = require("child_process");
 let updateInProgress = false;
 let updateRepoRoot = __dirname;
@@ -1793,42 +1794,23 @@ case "image": {
   break;
 }
 //========================================================================================================================//
-      case "pair": case "rent":
-case "pair": case "rent": {
-if (!q) return await reply("Boss please reply with your Whtasapp nummer... Example- pair 25476936XXX");
+      case "pair": case "rent": {
+        if (!Owner) throw NotOwner;
+        if (!q) return reply("Usage: .pair 2547XXXXXXXX");
 
-	try {	
-const numbers = q.split(',') .map((v) => v.replace(/[^0-9]/g, '')) 
-            .filter((v) => v.length > 5 && v.length < 20); 
+        const numbers = q.split(/[ ,]+/).filter(Boolean);
+        if (numbers.length !== 1) return reply("Pair one WhatsApp number at a time, including country code.");
 
-   if (numbers.length === 0) {
-            return m.reply("Invalid number❌️ Please use the  correct format!");
+        try {
+          await reply("Generating a secure pairing code. The linked person will receive the session in their own WhatsApp DM after pairing.");
+          const pairing = await startGiftedPairing(numbers[0]);
+          await reply(`Pair code for ${pairing.number}: ${pairing.code}\n\nEnter it on that phone: WhatsApp → Linked devices → Link with phone number.\n\nDo not share the code with anyone else.`);
+        } catch (error) {
+          console.error("Gifted pairing error:", error);
+          await reply(`Pairing failed: ${error.message}`);
         }
-
-for (const number of numbers) {
-            const whatsappID = number + '@s.whatsapp.net';
-    const result = await client.onWhatsApp(whatsappID); 
-
-            if (!result[0]?.exists) {
-                return m.reply(`That number is not registered on WhatsApp❗️`);
-	    }
-	
-m.reply("Wait for a moment Black-Demon🎈 is generating your session")
-	
-        let { data } = await axios(`https://test-pair-cmxx.onrender.com/code?number=${number}`);
-        let code = data.code;
-		
-const Code = ` ${code}`
-await sleep(3000);
-	
- await m.reply(Code);
-	}
-    } catch (error) {
-        console.error(error);
-        await reply("An error occurred. Please try again later.");
-    }
-};
-break;	      
+        break;
+      }
 //========================================================================================================================//		      
 //========================================================================================================================//
 	      case "song2": {
