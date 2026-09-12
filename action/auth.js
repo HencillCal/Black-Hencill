@@ -26,8 +26,13 @@ function normalizePairingNumber(value) {
 }
 
 function promptForNumber() {
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return Promise.resolve("");
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  if (!process.stdin || !process.stdin.readable) return Promise.resolve("");
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: Boolean(process.stdout.isTTY)
+  });
+  process.stdin.resume();
   return new Promise(resolve => {
     const ask = () => rl.question(
       "\nNo session found. Enter the WhatsApp number to link, including country code (example: 2547XXXXXXXX): ",

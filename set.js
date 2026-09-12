@@ -31,12 +31,11 @@ const sessionName = 'session';
 // Panel users can paste the complete session string between these quotes.
 // Leave it empty only when using the SESSION environment variable instead.
 const SESSION_IN_SET_JS = '';
-// Used when no session exists and the panel has no interactive terminal.
-// Change this number before deploying the bot under a different account.
-const PAIRING_NUMBER_IN_SET_JS = '254784320958';
+// Leave empty to prompt for the number in the panel console when no session exists.
+const PAIRING_NUMBER_IN_SET_JS = '';
 const session = SESSION_IN_SET_JS.trim() || getSetting('SESSION');
 const pairingNumber = getSetting('PAIRING_NUMBER', PAIRING_NUMBER_IN_SET_JS);
-const pairingCode = getSetting('PAIRING_CODE', pairingNumber ? 'TRUE' : 'FALSE');
+const pairingCode = getSetting('PAIRING_CODE', 'TRUE');
 const qrAuth = getSetting('QR_AUTH', 'TRUE');
 const autobio = getSetting('AUTOBIO', 'FALSE');
 const autolike = getSetting('AUTOLIKE_STATUS', 'FALSE');
