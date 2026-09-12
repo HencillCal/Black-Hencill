@@ -87,8 +87,8 @@ async function startRavenInternal() {
   let pairingDisplayCode = "";
   const client = ravenConnect({
     logger: pino({ level: "silent" }),
-    // Keep QR enabled even when a number is supplied: users with one device
-    // can enter the pairing code while users with two devices scan the QR.
+    // QR and phone-number pairing are both available when no session exists.
+    // Users with two devices can scan; users with one device can enter the code.
     printQRInTerminal: String(qrAuth).toUpperCase() === "TRUE",
     browser: ["JINWIIL-AI", "Safari", "5.1.7"],
     auth: state,
@@ -363,19 +363,15 @@ async function startRavenInternal() {
   client.serializeM = (m) => smsg(client, m, store);
   client.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
-    if (qr && String(qrAuth).toUpperCase() === "TRUE") {
-      console.log("\n════════ WhatsApp QR code ════════");
-      qrcode.generate(qr, { small: true });
-      console.log("Scan this QR from WhatsApp → Linked devices.");
-      if (pairingDisplayCode) {
-        console.log(`Pair code: ${pairingDisplayCode}`);
-        console.log("WhatsApp → Linked devices → Link with phone number");
-      } else if (authResult?.pairingNumber) {
-        console.log("Pair code: generating below the QR when ready...");
+    if (qr) {
+      if (String(qrAuth).toUpperCase() === "TRUE") {
+        console.log("\n════════ WhatsApp QR code ════════");
+        qrcode.generate(qr, { small: true });
+        console.log("Scan this QR from WhatsApp → Linked devices.");
+        console.log("══════════════════════════════════");
       }
-      console.log("══════════════════════════════════\n");
-      // Baileys is ready for phone-number pairing once this live QR event is
-      // emitted. Requesting earlier can return no code on panel deployments.
+      // Pairing-code generation must not depend on whether QR output is enabled.
+      // This is the one-device option for panel deployments.
       void requestPairingCode();
     }
     if (connection === "connecting" && !qr && authResult?.pairingNumber) {
