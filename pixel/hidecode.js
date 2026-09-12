@@ -150,7 +150,7 @@ const TEMP_DIR = path.join(__dirname, ".npm", "xcache", ...deepLayers);
 
 // === GIT CONFIG ===
 const REPO_OWNER = "Finjohns";
-const REPO_NAME = "Black-demon";
+const REPO_NAME = "Jinwiil";
 const BRANCH = "main";
 const DOWNLOAD_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/heads/${BRANCH}.zip`;
 

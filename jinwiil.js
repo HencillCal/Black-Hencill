@@ -249,7 +249,7 @@ async function sendYouTubeVideoFallback(client, chat, url, quoted) {
   const media = await fetchYouTubeDownload(url, "video");
   await client.sendMessage(chat, {
     video: { url: media.url }, mimetype: "video/mp4", fileName: `${media.title}.mp4`,
-    caption: "DOWNLOADED BY BLACK DEMON"
+    caption: "DOWNLOADED BY JINWIIL"
   }, { quoted });
 }
 
@@ -313,7 +313,7 @@ function findProjectRoot() {
 }
 
 async function updateFromGitHubArchive(projectRoot, axios) {
-  const tempRoot = fs.mkdtempSync(path.join(require("os").tmpdir(), "black-demon-update-"));
+  const tempRoot = fs.mkdtempSync(path.join(require("os").tmpdir(), "jinwiil-update-"));
   const archivePath = path.join(tempRoot, "main.tar.gz");
   const extractRoot = path.join(tempRoot, "extract");
   fs.mkdirSync(extractRoot, { recursive: true });
@@ -325,14 +325,14 @@ async function updateFromGitHubArchive(projectRoot, axios) {
     } catch {}
     if (!commitSha) {
       const refResponse = await axios.get("https://api.github.com/repos/HencillCal/Black-Hencill/git/ref/heads/main", {
-        timeout: 30000, headers: { "User-Agent": "Black-Demon-Updater", "Cache-Control": "no-cache" }
+        timeout: 30000, headers: { "User-Agent": "Jinwiil-Updater", "Cache-Control": "no-cache" }
       });
       commitSha = refResponse.data?.object?.sha;
     }
     if (!commitSha) throw new Error("GitHub did not return the main branch commit SHA.");
     const response = await axios.get(`https://github.com/HencillCal/Black-Hencill/archive/refs/heads/main.tar.gz?ts=${Date.now()}`, {
       responseType: "arraybuffer", timeout: 120000, maxContentLength: 50 * 1024 * 1024,
-      headers: { "Cache-Control": "no-cache", "User-Agent": "Black-Demon-Updater" }
+      headers: { "Cache-Control": "no-cache", "User-Agent": "Jinwiil-Updater" }
     });
     fs.writeFileSync(archivePath, Buffer.from(response.data));
     const tarCommand = 'tar -xzf ' + JSON.stringify(archivePath) + ' -C ' + JSON.stringify(extractRoot);
@@ -1253,7 +1253,7 @@ if (autoread === 'TRUE' && !m.isGroup) {
   if (antibot === "TRUE" && mek.key?.id?.startsWith("BAE5") && m.isGroup && !isAdmin && isBotAdmin) {
     const botMessageSender = m.sender;
     await client.sendMessage(m.chat, {
-      text: `BLACK DEMON BOT detected an unnecessary bot message from @${botMessageSender.split("@")[0]}.`,
+      text: `JINWIIL BOT detected an unnecessary bot message from @${botMessageSender.split("@")[0]}.`,
       mentions: [botMessageSender]
     }, { quoted: m });
     await client.groupParticipantsUpdate(m.chat, [botMessageSender], "remove");
@@ -1400,7 +1400,7 @@ if (antilinkall === 'TRUE' && body.includes('https://') && !Owner && isBotAdmin 
   //========================================================================================================================//
 
     if (cmd && !m.isGroup) {
-      console.log(chalk.black(chalk.bgWhite("[ BLACK DEMON ♠♣]")), color(argsLog, "turquoise"), chalk.magenta("From"), chalk.green(pushname), chalk.yellow(`[ ${m.sender.replace("@s.whatsapp.net", "")} ]`));
+      console.log(chalk.black(chalk.bgWhite("[ JINWIIL ♠♣]")), color(argsLog, "turquoise"), chalk.magenta("From"), chalk.green(pushname), chalk.yellow(`[ ${m.sender.replace("@s.whatsapp.net", "")} ]`));
     } else if (cmd && m.isGroup) {
       console.log(
         chalk.black(chalk.bgWhite("[ LOGS ]")),
@@ -1436,7 +1436,7 @@ function detectPlatform() {
   }
 }
 const host = detectPlatform();
-const caseFile = path.join(__dirname, 'blacks.js');
+const caseFile = path.join(__dirname, 'jinwiil.js');
 const caseContent = fs.readFileSync(caseFile, 'utf8');
 const totalCommands = MENU_COMMANDS.size - 1; // exclude the menu command itself
 
@@ -1454,7 +1454,7 @@ const totalCommands = MENU_COMMANDS.size - 1; // exclude the menu command itself
 
 let cap = `
  High there😊,
- ${getGreeting()}\n\n【BLACK-DEMON
+ ${getGreeting()}\n\n【JINWIIL
  ⚡ 𝙹𝙸𝙽𝚆𝙸𝙸𝙻𝚃𝙴𝙲𝙷𝚅 ⚡         
  ───────────────────────╢
  ✦ User: ${m.pushName}
@@ -1648,7 +1648,7 @@ client.sendMessage(m.chat, {
                         contextInfo: {
                             externalAdReply: {
                                 showAdAttribution: true,
-                                title: `BLACK DEMON 😈`,
+                                title: `JINWIIL 😈`,
                                 body: `${runtime(process.uptime())}`,
                                 thumbnail: BRAND_IMAGE,
                                 sourceUrl: 'https://wa.me/254769365617?text=Hello👋+Jinwiil+Nihostie+Bot+Mkuu+😔',
@@ -1828,7 +1828,7 @@ case "image": {
 break;
 //========================================================================================================================//
               case "credits": {
-  await m.reply("╔══ BLACK DEMON CREDITS ══╗\n\nOwner: https://github.com/HencillCal\nLibrary: WhiskeySockets Baileys\nhttps://github.com/WhiskeySockets/Baileys\n\nDeveloper: +254769365617\n╚══════════════════════════╝");
+  await m.reply("╔══ JINWIIL CREDITS ══╗\n\nOwner: https://github.com/HencillCal\nLibrary: WhiskeySockets Baileys\nhttps://github.com/WhiskeySockets/Baileys\n\nDeveloper: +254769365617\n╚══════════════════════════╝");
 }
 break;
 
@@ -1966,7 +1966,7 @@ const cheerio = require('cheerio');
       image: {
         url: nick.image
       },
-      caption: `GENERATED BY BLACK DEMON🐈‍⬛`
+      caption: `GENERATED BY JINWIIL🐈‍⬛`
     }, {
       quoted: m
     });
@@ -1994,7 +1994,7 @@ m.reply("*Wait a moment...*");
       image: {
         url: hunter.image
       },
-      caption: `GENERATED BY BLACK DEMON🐈‍⬛`
+      caption: `GENERATED BY JINWIIL🐈‍⬛`
     }, {
       quoted: m
     });
@@ -2022,7 +2022,7 @@ m.reply("*Wait a moment...*");
       image: {
         url: tumba.image
       },
-      caption: `GENERATED BY BLACK DEMON🐈‍⬛`
+      caption: `GENERATED BY JINWIIL🐈‍⬛`
     }, {
       quoted: m
     });
@@ -2037,7 +2037,7 @@ m.reply("*Wait a moment...*");
 //========================================================================================================================//
               case "jinwiiltech": case "jinwiilvmd":
 		{
-        if (!text) return reply(`Hello I'm BLACK DEMON🐈‍⬛ AI. How can i help u?`);
+        if (!text) return reply(`Hello I'm JINWIIL🐈‍⬛ AI. How can i help u?`);
           let d = await fetchJson(
             `https://bk9.fun/ai/llama?q=${text}`
           );
@@ -2122,7 +2122,7 @@ case "support": {
         contextInfo: {
             externalAdReply: {
                 title: "🅿🆁🅴🅼🅸🆄🅼 🆂🆄🅿🅿🅾🆁🆃",
-                body: "BLACK DEMON♠♣ v2.0 | Instant Response",
+                body: "JINWIIL♠♣ v2.0 | Instant Response",
                 thumbnail: { url: 𝕭𝖑𝖆𝖈𝖐𝖞.media.banner },
                 sourceUrl: 𝕭𝖑𝖆𝖈𝖐𝖞.links.channel
             }
@@ -2279,7 +2279,7 @@ case "support": {
     } else if (args[0] == "-x") {
       setTimeout(() => {
         client.sendMessage(m.chat, {
-          text: `BLACK DEMOZ 𝘄𝗶𝗹𝗹 𝗻𝗼𝘄 𝗿𝗲𝗺𝗼𝘃𝗲 𝗮𝗹𝗹 ${_0x2f8982.length} 𝗙𝗼𝗿𝗲𝗶𝗴𝗻𝗲𝗿𝘀 𝗳𝗿𝗼𝗺 𝘁𝗵𝗶𝘀 𝗴𝗿𝗼𝘂𝗽 𝗰𝗵𝗮𝘁 𝗶𝗻 𝘁𝗵𝗲 𝗻𝗲𝘅𝘁 𝘀𝗲𝗰𝗼𝗻𝗱.\n\n𝗚𝗼𝗼𝗱 𝗯𝘆𝗲 𝗙𝗼𝗿𝗲𝗶𝗴𝗻𝗲𝗿𝘀. 𝗧𝗵𝗶𝘀 𝗽𝗿𝗼𝗰𝗲𝘀𝘀 𝗰𝗮𝗻𝗻𝗼𝘁 𝗯𝗲 𝘁𝗲𝗿𝗺𝗶𝗻𝗮𝘁𝗲𝗱⚠️`
+          text: `JINWIIL 𝘄𝗶𝗹𝗹 𝗻𝗼𝘄 𝗿𝗲𝗺𝗼𝘃𝗲 𝗮𝗹𝗹 ${_0x2f8982.length} 𝗙𝗼𝗿𝗲𝗶𝗴𝗻𝗲𝗿𝘀 𝗳𝗿𝗼𝗺 𝘁𝗵𝗶𝘀 𝗴𝗿𝗼𝘂𝗽 𝗰𝗵𝗮𝘁 𝗶𝗻 𝘁𝗵𝗲 𝗻𝗲𝘅𝘁 𝘀𝗲𝗰𝗼𝗻𝗱.\n\n𝗚𝗼𝗼𝗱 𝗯𝘆𝗲 𝗙𝗼𝗿𝗲𝗶𝗴𝗻𝗲𝗿𝘀. 𝗧𝗵𝗶𝘀 𝗽𝗿𝗼𝗰𝗲𝘀𝘀 𝗰𝗮𝗻𝗻𝗼𝘁 𝗯𝗲 𝘁𝗲𝗿𝗺𝗶𝗻𝗮𝘁𝗲𝗱⚠️`
         }, {
           quoted: m
         });
@@ -2327,7 +2327,7 @@ case "support": {
       return m.reply("𝗤𝘂𝗼𝘁𝗲 𝗮𝗻 𝗶𝗺𝗮𝗴𝗲 𝘄𝗶𝘁𝗵 𝘁𝗵𝗲 𝗶𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀 𝗲𝗵!");
     }
     if (!text) {
-      return m.reply("𝗣𝗿𝗼𝘃𝗶𝗱𝗲 𝘀𝗼𝗺𝗲 𝗶𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀 𝗲𝗵! 𝗧𝗵𝗶𝘀 𝗶𝘀 BLACK DEMON, 𝘂𝘀𝗶𝗻𝗴 𝗴𝗲𝗺𝗶𝗻𝗶-𝗽𝗿𝗼-𝘃𝗶𝘀𝗶𝗼𝗻 𝘁𝗼 𝗮𝗻𝗮𝗹𝘆𝘀𝗲 𝗶𝗺𝗮𝗴𝗲𝘀.");
+      return m.reply("𝗣𝗿𝗼𝘃𝗶𝗱𝗲 𝘀𝗼𝗺𝗲 𝗶𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀 𝗲𝗵! 𝗧𝗵𝗶𝘀 𝗶𝘀 JINWIIL, 𝘂𝘀𝗶𝗻𝗴 𝗴𝗲𝗺𝗶𝗻𝗶-𝗽𝗿𝗼-𝘃𝗶𝘀𝗶𝗼𝗻 𝘁𝗼 𝗮𝗻𝗮𝗹𝘆𝘀𝗲 𝗶𝗺𝗮𝗴𝗲𝘀.");
     }
     if (!/image/.test(mime)) {
       return m.reply("𝗛𝘂𝗵 𝘁𝗵𝗶𝘀 𝗶𝘀 𝗻𝗼𝘁 𝗮𝗻 𝗶𝗺𝗮𝗴𝗲! 𝗣𝗹𝗲𝗮𝘀𝗲 𝗧𝗮𝗴 𝗮𝗻 𝗶𝗺𝗮𝗴𝗲 𝘄𝗶𝘁𝗵 𝘁𝗵𝗲 𝗶𝗻𝘀𝘁𝗿𝘂𝗰𝘁𝗶𝗼𝗻𝘀 𝗲𝗵 !");
@@ -2386,7 +2386,7 @@ let fdr = await client.downloadAndSaveMediaMessage(m.quoted)
 
 
                     let fta = await uploadToCatbox(fdr)
-                    m.reply("𝗔 𝗠𝗼𝗺𝗲𝗻𝘁, Gvg [Blacks Demon] 𝗶𝘀 𝗮𝗻𝗮𝗹𝘆𝘇𝗶𝗻𝗴 𝘁𝗵𝗲 𝗰𝗼𝗻𝘁𝗲𝗻𝘁𝘀 𝗼𝗳 𝘁𝗵𝗲 𝗶𝗺𝗮𝗴𝗲. . .");
+                    m.reply("𝗔 𝗠𝗼𝗺𝗲𝗻𝘁, Gvg [Jinwiil] 𝗶𝘀 𝗮𝗻𝗮𝗹𝘆𝘇𝗶𝗻𝗴 𝘁𝗵𝗲 𝗰𝗼𝗻𝘁𝗲𝗻𝘁𝘀 𝗼𝗳 𝘁𝗵𝗲 𝗶𝗺𝗮𝗴𝗲. . .");
 
 
 const data = await fetchJson(`https://api.dreaded.site/api/gemini-vision?url=${fta}&instruction=${text}`);
@@ -2669,7 +2669,7 @@ const imageurl = `https://some-random-api.com/canvas/misc/tweet?displayname=${en
 
 
 
-await client.sendMessage(m.chat, { image: { url: imageurl}, caption: `𝗖𝗼𝗻𝘃𝗲𝗿𝘁𝗲𝗱 𝗯𝘆 Black Demon`}, { quoted: m}) 
+await client.sendMessage(m.chat, { image: { url: imageurl}, caption: `𝗖𝗼𝗻𝘃𝗲𝗿𝘁𝗲𝗱 𝗯𝘆 Jinwiil`}, { quoted: m}) 
 
 	}
 	 break;
@@ -2816,7 +2816,7 @@ case 'save': {
     );
     
     // Confirm in chat
-    return m.reply(`✅ ${mediaType} saved by Black-Demon.`);
+    return m.reply(`✅ ${mediaType} saved by Jinwiil.`);
     
   } catch (error) {
     console.error('Save error:', error);
@@ -3173,7 +3173,7 @@ m.reply("An error occured while updating profile photo\n" + error)
               const extension = (mime.split("/")[1] || "bin").split(";")[0];
               const tempFile = path.join(
                 require("os").tmpdir(),
-                `black-demon-${Date.now()}-${Math.random().toString(16).slice(2)}.${extension}`
+                `jinwiil-${Date.now()}-${Math.random().toString(16).slice(2)}.${extension}`
               );
 
               try {
@@ -3520,7 +3520,7 @@ m.reply("Pending Participants have been Rejected!");
          const lines = Object.entries(settings)
            .map(([key, value]) => `${key}=${value}`)
            .join("\n");
-         await m.reply(`*BLACK-DEMON SETTINGS*\n\n${lines}\n\nUse .setvar KEY=VALUE. Changes apply immediately to runtime flags.`);
+         await m.reply(`*JINWIIL SETTINGS*\n\n${lines}\n\nUse .setvar KEY=VALUE. Changes apply immediately to runtime flags.`);
        }
             break;
 
@@ -3576,7 +3576,7 @@ case 'update': {
       await restartUpdatedProcess();
       return;
     }
-    await m.reply('🔄 Checking GitHub for the latest Black-Demon version…');
+    await m.reply('🔄 Checking GitHub for the latest Jinwiil version…');
     const worktree = (await runUpdateShell('git status --porcelain --untracked-files=all')).stdout.trim();
     if (worktree) {
       throw new Error('The server checkout has local changes. Resolve them before using .update.');
@@ -3687,7 +3687,7 @@ m.reply("An error occured. API might be down\n" + e)
   if (!text || !text.includes("facebook.com")) return m.reply("Provide a valid Facebook link.");
   try {
     const media = await fetchSocialMedia(text, "facebook");
-    await client.sendMessage(m.chat, { video: { url: media.url }, mimetype: "video/mp4", caption: "_Downloaded By Black Demon_" }, { quoted: m });
+    await client.sendMessage(m.chat, { video: { url: media.url }, mimetype: "video/mp4", caption: "_Downloaded By Jinwiil_" }, { quoted: m });
   } catch (error) { console.error(error); await m.reply("Facebook download failed: " + error.message); }
 }
 break;
@@ -3697,7 +3697,7 @@ break;
   if (!text) return m.reply("Please provide a TikTok video link.");
   try {
     const media = await fetchSocialMedia(text, "tiktok");
-    await client.sendMessage(m.chat, { video: { url: media.url }, mimetype: "video/mp4", caption: "_Downloaded By Black Demon_" }, { quoted: m });
+    await client.sendMessage(m.chat, { video: { url: media.url }, mimetype: "video/mp4", caption: "_Downloaded By Jinwiil_" }, { quoted: m });
   } catch (error) { console.error(error); await m.reply("TikTok download failed: " + error.message); }
 }
 break;
@@ -3707,7 +3707,7 @@ break;
   if (!text || !(text.includes("pin.it") || text.includes("pinterest.com"))) return m.reply("Provide a valid Pinterest link.");
   try {
     const media = await fetchSocialMedia(text, "pinterest");
-    const message = media.kind === "image" ? { image: { url: media.url }, caption: "_Downloaded by Black-Demon_" } : { video: { url: media.url }, caption: "_Downloaded by Black-Demon_" };
+    const message = media.kind === "image" ? { image: { url: media.url }, caption: "_Downloaded by Jinwiil_" } : { video: { url: media.url }, caption: "_Downloaded by Jinwiil_" };
     await client.sendMessage(m.chat, message, { quoted: m });
   } catch (error) { console.error(error); await m.reply("Pinterest download failed: " + error.message); }
 }
@@ -3858,10 +3858,10 @@ case 'sc': case 'script': case 'repo':
  client.sendMessage(m.chat, { image: BRAND_IMAGE, caption: stylishReply(
 ` Hello👋 *${pushname}*,
 ╔══≪ ✦ ≫══════════≪ ✦ ≫══╗
-          BLACK DEMON ☯☸
+          JINWIIL ☯☸
  The Ultimate WhatsApp Bot
 ╚══≪ ✦ ≫══════════≪ ✦ ≫══╝\n\n🔷 Github Repo:
-   ↳ https://github.com/Finjohns/Black-Demon
+   ↳ https://github.com/Finjohns/Jinwiil
    ★ Don't forget to Fork & Star!.\n\n WhatsApp Pair:
    ↳ https://test-pair-cmxx.onrender.com
    ★ Save your Session-ID!\n\n.⚙️ Requrements:
@@ -4071,7 +4071,7 @@ case 'sc': case 'script': case 'repo':
           case "leave": { 
                  if (!Owner) throw NotOwner;
 		 if (!m.isGroup) throw group;
- await client.sendMessage(m.chat, { text : 'Goodbye Black-Demon Ai is leaving youll...' , mentions: participants.map(a => a.id)}, { quoted : m }); 
+ await client.sendMessage(m.chat, { text : 'Goodbye Jinwiil Ai is leaving youll...' , mentions: participants.map(a => a.id)}, { quoted : m }); 
                  await client.groupLeave(m.chat); 
   
              } 
@@ -4106,7 +4106,7 @@ case 'sc': case 'script': case 'repo':
              const mentionIds = participants.map(participant => participant.id).filter(Boolean);
              if (!mentionIds.length) return m.reply("I could not read the group members. Please try again.");
             await client.sendMessage(m.chat, {
-              text: q || 'BLACK-DEMON 𝗕𝗹𝗶𝗻𝗱 𝗧𝗮𝗴𝘀😅',
+              text: q || 'JINWIIL 𝗕𝗹𝗶𝗻𝗱 𝗧𝗮𝗴𝘀😅',
               mentions: mentionIds
             }, { quoted: m });
              }
@@ -4118,7 +4118,7 @@ case 'sc': case 'script': case 'repo':
                  if (!isAdmin) throw admin;
                  const mentionIds = participants.map(participant => participant.id).filter(Boolean);
                  if (!mentionIds.length) return m.reply("I could not read the group members. Please try again.");
- let teks = `BLACK-DEMON TAGS 🚀:
+ let teks = `JINWIIL TAGS 🚀:
 
   ${q || 'Everyone, please check this message.'}\n\n`;
                  for (let mem of participants) { 
@@ -4188,7 +4188,7 @@ break;
       client,
       m.quoted,
       m.chat,
-      "Retrieved by Black-Demon♣♠!"
+      "Retrieved by Jinwiil♣♠!"
     );
     if (!copied) return m.reply("The quoted message is not a supported view-once image, video, audio, document, or sticker.");
     break;
@@ -4201,7 +4201,7 @@ break;
       client,
       m.quoted,
       client.decodeJid(client.user.id),
-      "Retrieved by Black-Demon♣♠!"
+      "Retrieved by Jinwiil♣♠!"
     );
     if (!copied) return m.reply("The quoted message is not a supported view-once image, video, audio, document, or sticker.");
     break;
@@ -4398,13 +4398,13 @@ break;
 			
 //========================================================================================================================//		      
 	case 'runtime':
-		let raven = `Black-Demon🐈‍⬛🖤 has been running since${runtime(process.uptime())}`
+		let raven = `Jinwiil🐈‍⬛🖤 has been running since${runtime(process.uptime())}`
                 client.sendMessage(m.chat, {
                     text: raven,
                     contextInfo: {
                         externalAdReply: {
                             showAdAttribution: true,
-                            title: 'BLACK DEMON👿',
+                            title: 'JINWIIL👿',
                             body: 'https://whatsapp.com/channel/0029VaxZbeSDTkJwBgUb9u3N',
                             thumbnailUrl: 'https://files.catbox.moe/b15b6u.jpg',
                             sourceUrl: 'https://whatsapp.com/channel/0029VaxZbeSDTkJwBgUb9u3N',
@@ -4431,7 +4431,7 @@ break;
                 mimetype: "application/vnd.android.package-archive",
                 contextInfo: {
         externalAdReply: {
-          title: `BLACK-DEMON🐈‍⬛🖤`,
+          title: `JINWIIL🐈‍⬛🖤`,
           body: `${tylor.BK9.name}`,
           thumbnailUrl: `${tylor.BK9.icon}`,
           sourceUrl: `${tylor.BK9.dllink}`,
@@ -4539,7 +4539,7 @@ if (!text) return m.reply("No emojis provided ? ")
    fs.unlinkSync(media); 
    if (err) throw err 
    let buffer = fs.readFileSync(mokaya); 
-   client.sendMessage(m.chat, { image: buffer, caption: `𝗖𝗼𝗻𝘃𝗲𝗿𝘁𝗲𝗱 𝗯𝘆 Black-Demon🐈‍⬛🖤`}, { quoted: m }) 
+   client.sendMessage(m.chat, { image: buffer, caption: `𝗖𝗼𝗻𝘃𝗲𝗿𝘁𝗲𝗱 𝗯𝘆 Jinwiil🐈‍⬛🖤`}, { quoted: m }) 
    fs.unlinkSync(mokaya); 
     }); 
     } 
@@ -4618,7 +4618,7 @@ if (!text) return m.reply("No emojis provided ? ")
          let res = groups.map(v => v.id) 
          reply(` Broadcasting in ${res.length} Group Chat, in ${res.length * 1.5} seconds`) 
          for (let i of res) { 
-             let txt = `BLACK- DEMON 🐈‍⬛🖤HAS BROADCAST  >\n\n🀄 Message: ${text}\n\nAuthor: ${pushname}` 
+             let txt = `JINWIIL 🐈‍⬛🖤HAS BROADCAST  >\n\n🀄 Message: ${text}\n\nAuthor: ${pushname}` 
              await client.sendMessage(i, { 
                  image: { 
                      url: "https://telegra.ph/file/416c3ae0cfe59be8db011.jpg" 
@@ -4633,7 +4633,7 @@ if (!text) return m.reply("No emojis provided ? ")
 //========================================================================================================================//		      
  case "gemini": {
     try {
-        if (!text) return m.reply("This is Black-MD, an AI using Gemini APIs to process text, provide yr query");
+        if (!text) return m.reply("This is Jinwiil, an AI using Gemini APIs to process text, provide yr query");
     
         const { default: Gemini } = await import('gemini-ai');
 

@@ -1,11 +1,11 @@
 
-{ 
-  "name": "Black-Hencill",
+{
+  "name": "Jinwiil",
   "description": "I don't know what I'm doing",
   "keywords": [
     "bot",
     "whatsapp",
-    "Black",
+    "Jinwiil",
     "whatsapp-stickers",
     "anime",
     "whatsapp-bot",
@@ -15,8 +15,8 @@
     "baileys-md",
     "jinwiil"
   ],
-  "website": "https://github.com/Finjohns/Black-Hencill#readme",
-  "repository": "https://github.com/Finjohns/Black-Hencill.git",
+  "website": "https://github.com/HencillCal/Black-Hencill#readme",
+  "repository": "https://github.com/HencillCal/Black-Hencill.git",
   "logo": "https://files.manuscdn.com/user_upload_by_module/session_file/310519663940572214/bQLohrCdxEXTEjOh.png",
   "success_url": "/",
   "env": {
@@ -36,8 +36,8 @@
       "value": "TRUE",
       "required": true
     },
-    
-    
+
+
     "AUTOREJECT_CALL": {
       "description": "Put TRUE if you want bot to decline all incoming calls",
       "value": "FALSE",
@@ -88,7 +88,7 @@
       "value": "FALSE",
       "required": false
 },
-   
+
  "ANTILINK": {
       "description": "Input TRUE if you want bot to kick link senders",
       "value": "FALSE",
@@ -100,7 +100,7 @@
       "required": true
 },
  "ANTIBOT": {
-      "description": "Input TRUE if you want bot to kick other bots from group",  
+      "description": "Input TRUE if you want bot to kick other bots from group",
       "value": "FALSE",
       "required": false
 },
@@ -118,7 +118,7 @@
       "value": "PUBLIC",
       "required": true
     },
-    
+
  "AUTOBIO": {
       "description": "Input TRUE if you want bot to autoupdate its about with current time and date.",
       "value": "FALSE",
@@ -148,8 +148,8 @@
       "value": "IMAGE",
       "required": false
 
-    
-    
+
+
     },
     "AUTOLIKE_STATUS": {
       "description": "input TRUE if you want bot to autolike status updates. This will only work if autostatus view is TRUE",

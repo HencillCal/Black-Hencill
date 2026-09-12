@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: Black-Demon
+    name: Jinwiil
     env: node
     plan: free
     repo: https://github.com/HencillCal/Black-Hencill

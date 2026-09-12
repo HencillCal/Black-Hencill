@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const welcomegoodbye = process.env.WELCOMEGOODBYE || 'FALSE';
-const botname = process.env.BOTNAME || 'Black-Demon🐈‍⬛🖤';
+const botname = process.env.BOTNAME || 'Jinwiil🐈‍⬛🖤';
 const BRAND_IMAGE = fs.readFileSync(path.join(__dirname, '..', 'assets', 'jinwiil-tech.png'));
 
 const Events = async (client, Nick) => {

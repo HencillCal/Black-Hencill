@@ -38,7 +38,7 @@ const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, awa
 const { sessionName, session, pairingCode, qrAuth, autobio, autolike, autorecord, autotyping, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete, getSetting } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
 const store = makeInMemoryStore({ logger: logger.child({ stream: 'store' }) });
-const raven = require("./blacks");
+const raven = require("./jinwiil");
 const color = (text, color) => {
   return !color ? chalk.green(text) : chalk.keyword(color)(text);
 };
@@ -410,10 +410,10 @@ async function startRavenInternal() {
       }
     } else if (connection === "open") {
       console.log("✅ WhatsApp credentials are active and saved in session/creds.json.");
-       console.log(color("Congrats,✅ Black Demon has successfully connected to this server", "green"));
+       console.log(color("Congrats,✅ Jinwiil has successfully connected to this server", "green"));
       console.log(color("Follow me on Instagram,X/Twitter as Jinwiil_Onginjo", "red"));
       console.log(color("Text the bot number with menu to check my command list"));
-      const Texxt = `> ✅ Bot is ON» »【BLACK DEMON】\n`+`👥 Mode »» ${mode}\n`+`👤 Prefix »» ${prefix}\n Thanks: Jinwiil_Onginjo`;
+      const Texxt = `> ✅ Bot is ON» »【JINWIIL】\n`+`👥 Mode »» ${mode}\n`+`👤 Prefix »» ${prefix}\n Thanks: Jinwiil_Onginjo`;
        // Join Channel if needed
       try {
         await 
@@ -555,7 +555,7 @@ async function startRavenInternal() {
     const extension = type?.ext || mime.split('/')[1] || "bin";
     const baseName = filename || path.join(
       require("os").tmpdir(),
-      `black-demon-media-${Date.now()}-${Math.random().toString(16).slice(2)}`
+      `jinwiil-media-${Date.now()}-${Math.random().toString(16).slice(2)}`
     );
     const trueFileName = attachExtension ? `${baseName}.${extension}` : baseName;
     await fs.promises.writeFile(trueFileName, buffer);
