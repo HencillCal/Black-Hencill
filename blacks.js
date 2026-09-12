@@ -41,6 +41,7 @@ const FANCY_FRAMES = [
   ["", ""], ["『", "』"], ["【", "】"], ["꧁", "꧂"], ["༺", "༻"],
   ["〈", "〉"], ["《", "》"], ["「", "」"], ["╭─ ", " ─╮"], ["┏━ ", " ━┓"]
 ];
+const FANCY_EMOJIS = ["😵", "💀", "🤓", "👻", "🕷", "👍🏼", "✌🏼", "✍🏼", "⌨", "🖱", "💿", "🌞", "☀", "🌊", "🕷"];
 
 function fancyTransform(value, map) {
   const [from, to] = map;
@@ -57,6 +58,8 @@ function makeFancyStyles(value) {
       styles.push(`${left}${fancyTransform(value, map)}${right}`);
     }
   }
+  const emojiFont = fancyTransform(value, FANCY_MAPS[1]);
+  for (const emoji of FANCY_EMOJIS) styles.push(`${emoji} ${emojiFont} ${emoji}`);
   return styles;
 }
 
