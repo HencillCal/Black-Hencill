@@ -25,6 +25,8 @@ const { menu, autoread, mode, antidel, antitag, appname, herokuapi, gptdm, botna
 const { smsg, runtime, fetchUrl, isUrl, processTime, formatp, tanggal, formatDate, getTime,  sleep, generateProfilePicture, clockString, fetchJson, getBuffer, jsonformat, format, parseMention, getRandom } = require('./lib/ravenfunc');
 const { startJinwiilPairing } = require('./lib/jinwiilPair');
 const { exec, spawn, execSync } = require("child_process");
+const BRAND_IMAGE_PATH = path.join(__dirname, 'assets', 'jinwiil-tech.png');
+const BRAND_IMAGE = fs.readFileSync(BRAND_IMAGE_PATH);
 let updateInProgress = false;
 let updateRepoRoot = __dirname;
 const forwardedViewOnceIds = new Set();
@@ -1639,7 +1641,7 @@ if (menu === 'VIDEO') {
 client.sendMessage(from, { text: stylishReply(cap)}, {quoted: m})
 
 } else if (menu === 'IMAGE') {
-client.sendMessage(m.chat, { image: { url: 'https://files.catbox.moe/m38sqm.jpg' }, caption: stylishReply(cap), fileLength: "9999999999"}, { quoted: m })
+ client.sendMessage(m.chat, { image: BRAND_IMAGE, caption: stylishReply(cap), fileLength: "9999999999"}, { quoted: m })
 } else if (menu === 'LINK') {
 client.sendMessage(m.chat, {
                         text: stylishReply(cap),
@@ -1648,7 +1650,7 @@ client.sendMessage(m.chat, {
                                 showAdAttribution: true,
                                 title: `BLACK DEMON 😈`,
                                 body: `${runtime(process.uptime())}`,
-                                thumbnail: fs.readFileSync('./Media/blackmachant.jpg'),
+                                thumbnail: BRAND_IMAGE,
                                 sourceUrl: 'https://wa.me/254769365617?text=Hello👋+Jinwiil+Nihostie+Bot+Mkuu+😔',
                                 mediaType: 1,
                                 renderLargerThumbnail: true
@@ -3305,7 +3307,7 @@ break;
 
   case "system":
   
-              client.sendMessage(m.chat, { image: { url: 'https://files.catbox.moe/s5nuh3.jpg' }, caption:`*BOT NAME: BACK DEMON 🕎☯*\n\n*BOT SPEED: ${Rspeed.toFixed(4)} Ms*\n\n*RUNTIME: ${runtime(process.uptime())}*\n\n*PLATFORM: ${host}*\n\n*lIBRARY: Baileys*\n\n*DEVELOPER: ${maindev}*`}); 
+              client.sendMessage(m.chat, { image: BRAND_IMAGE, caption:`*BOT NAME: BACK DEMON 🕎☯*\n\n*BOT SPEED: ${Rspeed.toFixed(4)} Ms*\n\n*RUNTIME: ${runtime(process.uptime())}*\n\n*PLATFORM: ${host}*\n\n*lIBRARY: Baileys*\n\n*DEVELOPER: ${maindev}*`});
  break;
 
 //========================================================================================================================//		      
@@ -3853,7 +3855,7 @@ break;
 //========================================================================================================================//		      
 case 'sc': case 'script': case 'repo':
 
- client.sendMessage(m.chat, { image: { url: `https://files.catbox.moe/m38sqm.jpg` }, caption: stylishReply(
+ client.sendMessage(m.chat, { image: BRAND_IMAGE, caption: stylishReply(
 ` Hello👋 *${pushname}*,
 ╔══≪ ✦ ≫══════════≪ ✦ ≫══╗
           BLACK DEMON ☯☸

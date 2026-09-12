@@ -1,5 +1,8 @@
-const welcomegoodbye = process.env.WELCOMEGOODBYE || 'FALSE'; 
+const fs = require('fs');
+const path = require('path');
+const welcomegoodbye = process.env.WELCOMEGOODBYE || 'FALSE';
 const botname = process.env.BOTNAME || 'Black-Demon🐈‍⬛🖤';
+const BRAND_IMAGE = fs.readFileSync(path.join(__dirname, '..', 'assets', 'jinwiil-tech.png'));
 
 const Events = async (client, Nick) => {
     if (!Nick?.id || !Array.isArray(Nick.participants)) return;
@@ -18,50 +21,44 @@ const Events = async (client, Nick) => {
     }
 
     try {
-        let participants = Nick.participants;
-        let desc = metadata.desc || "No Description";
-        let groupMembersCount = metadata.participants.length;
-
+        const participants = Nick.participants;
         for (const participant of participants) {
-            // Newer Baileys versions may provide participant objects instead
-            // of plain JID strings.
-            const num = typeof participant === "string"
+            const num = typeof participant === 'string'
                 ? participant
                 : participant?.id || participant?.jid;
-            if (!num || typeof num !== "string") continue;
+            if (!num || typeof num !== 'string') continue;
+
             let dpuser;
-
             try {
-                dpuser = await client.profilePictureUrl(num, "image");
+                dpuser = await client.profilePictureUrl(num, 'image');
             } catch {
-                dpuser = "https://files.catbox.moe/m38sqm.jpg";
+                dpuser = BRAND_IMAGE;
             }
+            const imagePayload = Buffer.isBuffer(dpuser) ? dpuser : { url: dpuser };
 
-            if (Nick.action === "add") {
-                let userName = num;
-
-                let Welcometext = `@${userName.split("@")[0]} Holla👋,\n\nWelcome to ${metadata.subject}.\n\nYou might want to read group description,\nFollow group rules to avoid being removed.\n\n ${botname} 2025.`;
+            if (Nick.action === 'add') {
+                const userName = num;
+                const welcomeText = `@${userName.split('@')[0]} Holla👋,\n\nWelcome to ${metadata.subject}.\n\nYou might want to read group description,\nFollow group rules to avoid being removed.\n\n${botname} 2025.`;
                 if (welcomegoodbye === 'TRUE') {
                     await client.sendMessage(Nick.id, {
-                        image: { url: dpuser },
-                        caption: Welcometext,
-                        mentions: [num],
-                        });
-                }
-            } else if (Nick.action === "remove") {
-                let userName2 = num;
-
-                let Lefttext = `@${userName2.split("@")[0]} Goodbye we shall miss you😔.\n\nAnyway Goodbye .`;
-                if (welcomegoodbye === 'TRUE') {
-                    await client.sendMessage(Nick.id, {
-                        image: { url: dpuser },
-                        caption: Lefttext,
-                        mentions: [num],
+                        image: imagePayload,
+                        caption: welcomeText,
+                        mentions: [num]
                     });
                 }
-               }
-              }
-             } catch (err) {
+            } else if (Nick.action === 'remove') {
+                const userName = num;
+                const goodbyeText = `@${userName.split('@')[0]} Goodbye we shall miss you😔.\n\nAnyway Goodbye.`;
+                if (welcomegoodbye === 'TRUE') {
+                    await client.sendMessage(Nick.id, {
+                        image: imagePayload,
+                        caption: goodbyeText,
+                        mentions: [num]
+                    });
+                }
+            }
+        }
+    } catch (err) {
         console.log(err);
     }
 };
