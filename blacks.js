@@ -42,12 +42,29 @@ const FANCY_FONT_RANGES = [
   [0x1d4d0, 0x1d4ea], [0x1d5a0, 0x1d5ba], [0x1d5d4, 0x1d5ee],
   [0x1d608, 0x1d622], [0x1d63c, 0x1d656], [0x1d670, 0x1d68a]
 ];
+const FANCY_SMALL_CAPS = Object.fromEntries([..."abcdefghijklmnopqrstuvwxyz"].map((char, index) => [char, [..."ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀsᴛᴜᴠᴡxʏᴢ"][index] || char]));
+const FANCY_SUPERSCRIPT = { a: "ᵃ", b: "ᵇ", c: "ᶜ", d: "ᵈ", e: "ᵉ", f: "ᶠ", g: "ᵍ", h: "ʰ", i: "ⁱ", j: "ʲ", k: "ᵏ", l: "ˡ", m: "ᵐ", n: "ⁿ", o: "ᵒ", p: "ᵖ", r: "ʳ", s: "ˢ", t: "ᵗ", u: "ᵘ", v: "ᵛ", w: "ʷ", x: "ˣ", y: "ʸ", z: "ᶻ" };
+const FANCY_SUBSCRIPT = { a: "ₐ", e: "ₑ", h: "ₕ", i: "ᵢ", j: "ⱼ", k: "ₖ", l: "ₗ", m: "ₘ", n: "ₙ", o: "ₒ", p: "ₚ", r: "ᵣ", s: "ₛ", t: "ₜ", u: "ᵤ", v: "ᵥ", x: "ₓ" };
+const FANCY_MIRROR = Object.fromEntries([..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((char, index) => [char, [..."ɐqɔpǝɟƃɥᴉɾʞןɯuodbɹsʇnʌʍxʎz∀𐐒Ɔ◖ƎℲפHIſ⋊⅃WNOԀΌᴚS┴∩ΛMX⅄Z"][index] || char]));
 
 function fancyUnicodeFont(value, upperStart, lowerStart) {
   return [...String(value)].map(char => {
     const code = char.codePointAt(0);
     if (code >= 65 && code <= 90) return String.fromCodePoint(upperStart + code - 65);
     if (code >= 97 && code <= 122) return String.fromCodePoint(lowerStart + code - 97);
+    return char;
+  }).join("");
+}
+
+function mappedFancy(value, mapping, suffix = "") {
+  return [...String(value)].map(char => mapping[char] || mapping[char.toLowerCase()] || char).join("") + suffix;
+}
+
+function fullwidthFancy(value) {
+  return [...String(value)].map(char => {
+    const code = char.codePointAt(0);
+    if (code >= 33 && code <= 126) return String.fromCodePoint(code + 0xfee0);
+    if (char === " ") return "　";
     return char;
   }).join("");
 }
@@ -65,6 +82,17 @@ function makeFancyStyles(value) {
   for (const [upperStart, lowerStart] of FANCY_FONT_RANGES) {
     styles.push(fancyUnicodeFont(value, upperStart, lowerStart));
   }
+  styles.push(
+    mappedFancy(value.toLowerCase(), FANCY_SMALL_CAPS),
+    mappedFancy(value.toLowerCase(), FANCY_SUPERSCRIPT),
+    mappedFancy(value.toLowerCase(), FANCY_SUBSCRIPT),
+    mappedFancy(value, FANCY_MIRROR),
+    fullwidthFancy(value),
+    [...String(value)].join(" "),
+    [...String(value)].join("·"),
+    [...String(value)].map(char => `${char}\u0332`).join(""),
+    [...String(value)].map(char => `${char}\u0336`).join("")
+  );
   return [...new Set(styles)];
 }
 
