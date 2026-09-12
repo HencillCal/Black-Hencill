@@ -23,7 +23,7 @@ const { TelegraPh, UploadFileUgu, webp2mp4File, floNime } = require('./lib/raven
 const { Configuration, OpenAI } = require("openai");
 const { menu, autoread, mode, antidel, antitag, appname, herokuapi, gptdm, botname, antibot, prefix, author, packname, mycode, admin, botAdmin, dev, owner, group, bad, DevRaven, NotOwner, antilink, antilinkall, wapresence, badwordkick, getDisplaySettings, setSetting, normalizeSettingKey } = require("./set.js");
 const { smsg, runtime, fetchUrl, isUrl, processTime, formatp, tanggal, formatDate, getTime,  sleep, generateProfilePicture, clockString, fetchJson, getBuffer, jsonformat, format, parseMention, getRandom } = require('./lib/ravenfunc');
-const { startGiftedPairing } = require('./lib/giftedPair');
+const { startJinwiilPairing } = require('./lib/jinwiilPair');
 const { exec, spawn, execSync } = require("child_process");
 let updateInProgress = false;
 let updateRepoRoot = __dirname;
@@ -1803,10 +1803,10 @@ case "image": {
 
         try {
           await reply("Generating a secure pairing code. The linked person will receive the session in their own WhatsApp DM after pairing.");
-          const pairing = await startGiftedPairing(numbers[0]);
+          const pairing = await startJinwiilPairing(numbers[0]);
           await reply(`Pair code for ${pairing.number}: ${pairing.code}\n\nEnter it on that phone: WhatsApp → Linked devices → Link with phone number.\n\nDo not share the code with anyone else.`);
         } catch (error) {
-          console.error("Gifted pairing error:", error);
+          console.error("Jinwiil pairing error:", error);
           await reply(`Pairing failed: ${error.message}`);
         }
         break;

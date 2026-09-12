@@ -68,7 +68,7 @@ function decodeSession(value) {
     }
     return json;
   } catch {
-    throw new Error("SESSION could not be decoded. Use the complete Gifted~ session value.");
+    throw new Error("SESSION could not be decoded. Use the complete Jinwiil~ session value.");
   }
 }
 
