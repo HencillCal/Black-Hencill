@@ -37,11 +37,20 @@ const FANCY_MAPS = [
   ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ"],
   ["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "𝖠𝖡𝖢𝖣𝖤𝖥𝖦𝖧𝖨𝖩𝖪𝖫𝖬𝖭𝖮𝖯𝖰𝖱𝖲𝖳𝖴𝖵𝖶𝖷𝖸𝖹𝖺𝖻𝖼𝖽𝖾𝖿𝗀𝗁𝗂𝗃𝗄𝗅𝗆𝗇𝗈𝗉𝗊𝗋𝗌𝗍𝗎𝗏𝗐𝗑𝗒𝗓"]
 ];
-const FANCY_FRAMES = [
-  ["", ""], ["『", "』"], ["【", "】"], ["꧁", "꧂"], ["༺", "༻"],
-  ["〈", "〉"], ["《", "》"], ["「", "」"], ["╭─ ", " ─╮"], ["┏━ ", " ━┓"]
+const FANCY_FONT_RANGES = [
+  [0x1d400, 0x1d41a], [0x1d434, 0x1d44e], [0x1d468, 0x1d482],
+  [0x1d4d0, 0x1d4ea], [0x1d5a0, 0x1d5ba], [0x1d5d4, 0x1d5ee],
+  [0x1d608, 0x1d622], [0x1d63c, 0x1d656], [0x1d670, 0x1d68a]
 ];
-const FANCY_EMOJIS = ["😵", "💀", "🤓", "👻", "🕷", "👍🏼", "✌🏼", "✍🏼", "⌨", "🖱", "💿", "🌞", "☀", "🌊", "🕷"];
+
+function fancyUnicodeFont(value, upperStart, lowerStart) {
+  return [...String(value)].map(char => {
+    const code = char.codePointAt(0);
+    if (code >= 65 && code <= 90) return String.fromCodePoint(upperStart + code - 65);
+    if (code >= 97 && code <= 122) return String.fromCodePoint(lowerStart + code - 97);
+    return char;
+  }).join("");
+}
 
 function fancyTransform(value, map) {
   const [from, to] = map;
@@ -52,15 +61,11 @@ function fancyTransform(value, map) {
 }
 
 function makeFancyStyles(value) {
-  const styles = [];
-  for (const map of FANCY_MAPS) {
-    for (const [left, right] of FANCY_FRAMES) {
-      styles.push(`${left}${fancyTransform(value, map)}${right}`);
-    }
+  const styles = FANCY_MAPS.map(map => fancyTransform(value, map));
+  for (const [upperStart, lowerStart] of FANCY_FONT_RANGES) {
+    styles.push(fancyUnicodeFont(value, upperStart, lowerStart));
   }
-  const emojiFont = fancyTransform(value, FANCY_MAPS[1]);
-  for (const emoji of FANCY_EMOJIS) styles.push(`${emoji} ${emojiFont} ${emoji}`);
-  return styles;
+  return [...new Set(styles)];
 }
 
 function targetJidFromCommand(message, rawText, client) {

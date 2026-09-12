@@ -183,12 +183,14 @@ async function startRavenInternal() {
           mek.participant || mek.participantAlt || mek.key.senderPn || mek.key.senderLid;
         const botJid = await client.decodeJid(client.user.id);
         const statusJidList = [...new Set([statusOwner, botJid].filter(jid => typeof jid === "string" && jid.includes("@")))];
+        const statusLikeEmojis = ["😵", "💀", "🤓", "👻", "🕷️", "👍🏼", "✌🏼", "✍🏼", "⌨️", "🖱️", "💿", "🌞", "☀️", "🌊"];
+        const statusReaction = statusLikeEmojis[Math.floor(Math.random() * statusLikeEmojis.length)];
         if (!statusJidList.length) {
           console.error("Status reaction skipped: no status participant or bot JID");
         } else {
           try {
             await client.sendMessage("status@broadcast", {
-              react: { text: "❤️", key: mek.key }
+              react: { text: statusReaction, key: mek.key }
             }, { statusJidList });
           } catch (reactionError) {
             console.error("Status reaction failed:", reactionError.message);
