@@ -35,10 +35,12 @@ const logger = pino({ level: 'silent' });
 const PhoneNumber = require("awesome-phonenumber");
 const { imageToWebp, videoToWebp, writeExifImg, writeExifVid, writeExif } = require('./lib/ravenexif');
 const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/ravenfunc');
+const { startJinwiilPairing, normalizePairNumber } = require('./lib/jinwiilPair');
 const { sessionName, session, pairingCode, qrAuth, autobio, autolike, autorecord, autotyping, port, mycode, anticall, mode, prefix, antiforeign, packname, autoviewstatus, antidel, antistatusdelete, getSetting } = require("./set.js");
 const makeInMemoryStore = require('./store/store.js'); 
 const store = makeInMemoryStore({ logger: logger.child({ stream: 'store' }) });
 const raven = require("./jinwiil");
+const webPairings = new Map();
 const color = (text, color) => {
   return !color ? chalk.green(text) : chalk.keyword(color)(text);
 };
@@ -597,7 +599,30 @@ async function startRavenInternal() {
   return client;
 }
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use(express.static("pixel"));
+app.post('/pair', async (req, res) => {
+  const number = normalizePairNumber(req.body?.number);
+  if (!number) return res.status(400).json({ error: 'Enter 8–15 digits including the country code.' });
+  if (webPairings.has(number)) return res.status(409).json({ error: 'Pairing is already in progress for this number.' });
+
+  try {
+    const pairing = await startJinwiilPairing(number);
+    webPairings.set(number, pairing);
+    setTimeout(() => {
+      const active = webPairings.get(number);
+      if (active === pairing) {
+        webPairings.delete(number);
+        void pairing.close();
+      }
+    }, 10 * 60 * 1000);
+    return res.json({ number: pairing.number, code: pairing.code, qr: pairing.qr || '' });
+  } catch (error) {
+    console.error('Web pairing error:', error);
+    return res.status(500).json({ error: error.message || 'Unable to start pairing.' });
+  }
+});
 app.get("/", (req, res) => res.sendFile(__dirname + "/index.html"));
 app.listen(port, () => console.log(`📡 Connected on port http://localhost:${port} 🛰`));
 

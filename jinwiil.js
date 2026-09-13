@@ -443,6 +443,31 @@ function stylishReply(text) {
   return `\`\`\`\n${text}\n\`\`\``;
 }
 
+async function sendCopyButton(client, jid, text, copyLabel, copyValue, quoted) {
+  const buttonParamsJson = JSON.stringify({
+    display_text: copyLabel,
+    id: `copy_${Date.now()}`,
+    copy_code: String(copyValue)
+  });
+  try {
+    await client.sendMessage(jid, {
+      viewOnceMessage: {
+        message: {
+          interactiveMessage: {
+            body: { text },
+            nativeFlowMessage: {
+              buttons: [{ name: "cta_copy", buttonParamsJson }]
+            }
+          }
+        }
+      }
+    }, { quoted });
+  } catch (error) {
+    console.error("Copy button message failed; sending text fallback:", error.message);
+    await client.sendMessage(jid, { text: `${text}\n\nCopy value:\n${copyValue}` }, { quoted });
+  }
+}
+
 function messageCacheKey(remoteJid, messageId) {
   return `${remoteJid}:${messageId}`;
 }
@@ -1701,13 +1726,8 @@ case "idch": case "cekidch": {
       `*Followers:* ${result?.subscribers ?? "Unavailable"}\n` +
       `*Status:* ${result?.state || "Unavailable"}\n` +
       `*Verification:* ${verified}`;
-    // Do not wrap this in a hand-built interactive/view-once envelope. Some
-    // WhatsApp clients reject that envelope with “This message couldn't
-    // load”. A normal text message is supported everywhere and keeps the
-    // complete ID visible and copyable.
-    await client.sendMessage(m.chat, {
-      text: `${details}\n\n*Copy channel ID:*\n${result?.id || "Unavailable"}`
-    }, { quoted: m });
+    const channelId = result?.id || "Unavailable";
+    await sendCopyButton(client, m.chat, details, "Copy channel ID", channelId, m);
   } catch (error) {
     console.error("Channel metadata lookup failed:", error.message);
     return reply(`Unable to read channel metadata: ${error.message}`);
@@ -1806,7 +1826,14 @@ case "image": {
         try {
           await reply("Generating a secure pairing code. The linked person will receive the session in their own WhatsApp DM after pairing.");
           const pairing = await startJinwiilPairing(numbers[0]);
-          await reply(`Pair code for ${pairing.number}: ${pairing.code}\n\nEnter it on that phone: WhatsApp → Linked devices → Link with phone number.\n\nDo not share the code with anyone else.`);
+          await sendCopyButton(
+            client,
+            m.chat,
+            `Pair code for ${pairing.number}:\n\nEnter it on that phone: WhatsApp → Linked devices → Link with phone number.\n\nDo not share the code with anyone else.`,
+            "Copy pair code",
+            pairing.code,
+            m
+          );
         } catch (error) {
           console.error("Jinwiil pairing error:", error);
           await reply(`Pairing failed: ${error.message}`);

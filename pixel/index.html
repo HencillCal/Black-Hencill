@@ -1,70 +1,67 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-	<title style="color: #00698f;">𝗝𝗜𝗡𝗪𝗜𝗜𝗟-𝗩𝗠𝗗</title>
-	<style>
-		body {
-			background-image: url('https://files.catbox.moe/lrnb7j.jpg') !important;
-			background-size: cover;
-			background-position: center;
-		}
-		
-		.container {
-			max-width: 800px;
-			margin: 40px auto;
-			padding: 20px;
-			background-color: #fff;
-			border: 1px solid #ddd;
-			border-radius: 10px;
-			box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-		}
-		
-		h1 {
-			color: #00698f; /* blue color */
-			font-size: 36px;
-			margin-bottom: 10px;
-		}
-		
-		.beautified-text {
-			color: #00698f; /* blue color */
-			font-size: 24px;
-			font-weight: bold;
-			margin-bottom: 20px;
-			text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #33cc33; /* shiny effect */
-		}
-		
-		.beautified-text span {
-			color: #33cc33; /* green color */
-			font-size: 24px;
-			font-weight: bold;
-			text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #33cc33; /* shiny effect */
-		}
-		
-		.icons {
-			margin-top: 20px;
-		}
-		
-		.icons a {
-			margin-right: 10px;
-		}
-		
-		.icons img {
-			width: 24px;
-			height: 24px;
-		}
-	</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JINWIIL Pairing</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Arial, sans-serif; background: linear-gradient(135deg, #080b12, #18263a); color: #f7f9fc; }
+    .card { width: min(92vw, 560px); padding: 30px; border-radius: 18px; background: rgba(18, 27, 42, .94); box-shadow: 0 18px 60px rgba(0,0,0,.4); }
+    h1 { margin-top: 0; color: #75d7ff; }
+    p { color: #c2ccda; line-height: 1.5; }
+    label { display: block; margin: 22px 0 8px; font-weight: 700; }
+    input, button { box-sizing: border-box; width: 100%; padding: 13px 15px; border-radius: 9px; font-size: 16px; }
+    input { border: 1px solid #52657e; background: #0c1421; color: #fff; }
+    button { margin-top: 12px; border: 0; background: #19a974; color: white; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #status { min-height: 24px; margin-top: 16px; }
+    .result { display: none; margin-top: 22px; padding-top: 22px; border-top: 1px solid #40516a; text-align: center; }
+    #qrcode { display: inline-block; padding: 12px; background: white; border-radius: 10px; }
+    .code { margin: 15px 0; padding: 14px; border-radius: 9px; background: #07101d; color: #8fffc9; font: 700 25px monospace; letter-spacing: 3px; }
+    .hint { font-size: 13px; }
+  </style>
 </head>
 <body>
-	<div class="container">
-		<h1>WELCOME TO JINWIIL VTECH 👻</h1>
-	<p class="beautified-text">Holla, you have <span>successfully</span> connected to <span>JINWIIL🐈‍⬛🖤.</span>The bot is currently running and <span>ACTIVE</span>.</p>
-		
-		<div class="icons">
-			<a href="https://github.com/Finjohns/Jinwiil"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v7/icons/github.svg" alt="GitHub Icon"></a>
-			<a href="https://wa.me/254769365617"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v7/icons/whatsapp.svg" alt="WhatsApp Icon"></a>
-		</div>
-		<p>&copy; 2025 <span style="color: red;">JINWIIL VTECH</span></p>
-	</div>
-
+  <main class="card">
+    <h1>JINWIIL WhatsApp Pairing</h1>
+    <p>Enter the WhatsApp number with country code, then press <b>Send</b>. The pairing code and QR code will appear here.</p>
+    <form id="pair-form">
+      <label for="number">WhatsApp number</label>
+      <input id="number" name="number" inputmode="numeric" autocomplete="tel" placeholder="2547XXXXXXXX" required>
+      <button id="send" type="submit">Send</button>
+    </form>
+    <div id="status" role="status"></div>
+    <section class="result" id="result">
+      <h2>Scan QR or enter the pairing code</h2>
+      <div id="qrcode"></div>
+      <div class="code" id="code"></div>
+      <p class="hint">On WhatsApp: Linked devices → Link with phone number. Keep this code private.</p>
+    </section>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    const form = document.getElementById('pair-form');
+    const send = document.getElementById('send');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      send.disabled = true;
+      status.textContent = 'Starting pairing…';
+      result.style.display = 'none';
+      document.getElementById('qrcode').replaceChildren();
+      try {
+        const response = await fetch('/pair', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({number: document.getElementById('number').value}) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Pairing failed');
+        document.getElementById('code').textContent = data.code;
+        if (data.qr && window.QRCode) new QRCode(document.getElementById('qrcode'), { text: data.qr, width: 240, height: 240 });
+        status.textContent = data.qr ? 'Pairing code and QR code are ready.' : 'Pairing code is ready. QR was not provided by WhatsApp for this request.';
+        result.style.display = 'block';
+      } catch (error) { status.textContent = error.message; }
+      finally { send.disabled = false; }
+    });
+  </script>
 </body>
-  </html>
+</html>
