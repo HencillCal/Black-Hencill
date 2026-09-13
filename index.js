@@ -89,7 +89,7 @@ async function startRavenInternal() {
     logger: pino({ level: "silent" }),
     // QR and phone-number pairing are both available when no session exists.
     // Users with two devices can scan; users with one device can enter the code.
-    printQRInTerminal: String(qrAuth).toUpperCase() === "TRUE",
+    printQRInTerminal: String(qrAuth).trim().toUpperCase() === "TRUE",
     browser: ["JINWIIL-AI", "Safari", "5.1.7"],
     auth: state,
     // Do not replay the entire WhatsApp history into the command handler.
@@ -100,7 +100,7 @@ async function startRavenInternal() {
 
   let pairingRequestStarted = false;
   const requestPairingCode = async () => {
-    if (!authResult?.pairingNumber || String(pairingCode).toUpperCase() !== "TRUE" || pairingRequestStarted || pairingDisplayCode) return;
+    if (!authResult?.pairingNumber || String(pairingCode).trim().toUpperCase() !== "TRUE" || pairingRequestStarted || pairingDisplayCode) return;
     pairingRequestStarted = true;
     try {
       const code = await client.requestPairingCode(authResult.pairingNumber);
@@ -116,6 +116,14 @@ async function startRavenInternal() {
       console.error("Pairing-code request failed; QR authentication remains available:", error.message);
     }
   };
+
+  // Do not depend on a particular connection.update ordering. Some Baileys
+  // versions emit QR before the socket is ready for pairing, while others do
+  // not emit a QR event when phone-number pairing is selected.
+  if (authResult?.pairingNumber) {
+    console.log(`Pairing number accepted: ${authResult.pairingNumber}`);
+    setTimeout(() => void requestPairingCode(), 2500);
+  }
 
   if (autobio === 'TRUE') {
     setInterval(() => {
@@ -364,7 +372,7 @@ async function startRavenInternal() {
   client.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
-      if (String(qrAuth).toUpperCase() === "TRUE") {
+      if (String(qrAuth).trim().toUpperCase() === "TRUE") {
         console.log("\n════════ WhatsApp QR code ════════");
         qrcode.generate(qr, { small: true });
         console.log("Scan this QR from WhatsApp → Linked devices.");
@@ -374,8 +382,8 @@ async function startRavenInternal() {
       // This is the one-device option for panel deployments.
       void requestPairingCode();
     }
-    if (connection === "connecting" && !qr && authResult?.pairingNumber) {
-      setTimeout(() => void requestPairingCode(), 1000);
+    if (connection === "connecting" && authResult?.pairingNumber) {
+      setTimeout(() => void requestPairingCode(), 1500);
     }
     if (connection === "close") {
       let reason = new Boom(lastDisconnect?.error)?.output.statusCode;

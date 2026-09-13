@@ -16,7 +16,7 @@ function readRuntimeSettings() {
 
 function getSetting(key, fallback = '') {
   const settings = readRuntimeSettings();
-  return process.env[key] ?? settings[key] ?? fallback;
+  return String(process.env[key] ?? settings[key] ?? fallback).trim();
 }
 
 function setSetting(key, value) {
