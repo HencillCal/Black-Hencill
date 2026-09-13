@@ -90,12 +90,17 @@ async function authentication() {
 
   fs.mkdirSync(sessionDir, { recursive: true });
   const configured = normalizePairingNumber(pairingNumber);
-  const selected = configured || await promptForNumber();
+  // Hosting-panel consoles usually expose a command widget, not the Node
+  // process stdin stream. Waiting on readline there prevents Baileys from
+  // creating its socket, so neither QR nor pairing-code events can appear.
+  // Only prompt when stdin is a real interactive terminal; panels should use
+  // PAIRING_NUMBER in their environment/settings instead.
+  const selected = configured || (process.stdin.isTTY ? await promptForNumber() : "");
   if (selected) {
     console.log("Pairing number accepted. Do not share the pairing code or QR code.");
   } else {
-    console.log("No interactive terminal number was provided. QR authentication remains available.");
-    console.log("For non-interactive panels, set PAIRING_NUMBER=2547XXXXXXXX and restart.");
+    console.log("No pairing number configured. QR authentication will start now.");
+    console.log("For phone-number pairing on a hosting panel, set PAIRING_NUMBER=2547XXXXXXXX and restart.");
   }
   return { interactive: true, hasCredentials: false, pairingNumber: selected };
 }
