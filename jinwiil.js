@@ -443,11 +443,26 @@ function stylishReply(text) {
   return `\`\`\`\n${text}\n\`\`\``;
 }
 
-async function sendCopyButton(client, jid, text, copyLabel, copyValue, quoted) {
-  const buttonParamsJson = JSON.stringify({
-    display_text: copyLabel,
-    id: `copy_${Date.now()}`,
-    copy_code: String(copyValue)
+async function sendInteractiveButtons(client, jid, text, buttons, fallbackValues, quoted) {
+  const nativeButtons = buttons.map((button, index) => {
+    if (button.type === "url") {
+      return {
+        name: "cta_url",
+        buttonParamsJson: JSON.stringify({
+          display_text: button.label,
+          url: button.value,
+          merchant_url: button.value
+        })
+      };
+    }
+    return {
+      name: "cta_copy",
+      buttonParamsJson: JSON.stringify({
+        display_text: button.label,
+        id: `copy_${Date.now()}_${index}`,
+        copy_code: String(button.value)
+      })
+    };
   });
   try {
     await client.sendMessage(jid, {
@@ -456,7 +471,7 @@ async function sendCopyButton(client, jid, text, copyLabel, copyValue, quoted) {
           interactiveMessage: {
             body: { text },
             nativeFlowMessage: {
-              buttons: [{ name: "cta_copy", buttonParamsJson }]
+              buttons: nativeButtons
             }
           }
         }
@@ -464,8 +479,16 @@ async function sendCopyButton(client, jid, text, copyLabel, copyValue, quoted) {
     }, { quoted });
   } catch (error) {
     console.error("Copy button message failed; sending text fallback:", error.message);
-    await client.sendMessage(jid, { text: `${text}\n\nCopy value:\n${copyValue}` }, { quoted });
+    const fallback = fallbackValues.map(item => `${item.label}: ${item.value}`).join("\n");
+    await client.sendMessage(jid, { text: `${text}\n\n${fallback}` }, { quoted });
   }
+}
+
+async function sendCopyButton(client, jid, text, copyLabel, copyValue, quoted, extraButtons = []) {
+  return sendInteractiveButtons(client, jid, text, [
+    { type: "copy", label: copyLabel, value: copyValue },
+    ...extraButtons
+  ], [{ label: copyLabel, value: copyValue }, ...extraButtons], quoted);
 }
 
 function messageCacheKey(remoteJid, messageId) {
@@ -1727,7 +1750,9 @@ case "idch": case "cekidch": {
       `*Status:* ${result?.state || "Unavailable"}\n` +
       `*Verification:* ${verified}`;
     const channelId = result?.id || "Unavailable";
-    await sendCopyButton(client, m.chat, details, "Copy channel ID", channelId, m);
+    await sendCopyButton(client, m.chat, details, "Copy channel ID", channelId, m, [
+      { type: "url", label: "Open channel", value: `https://whatsapp.com/channel/${match[1]}` }
+    ]);
   } catch (error) {
     console.error("Channel metadata lookup failed:", error.message);
     return reply(`Unable to read channel metadata: ${error.message}`);
@@ -1832,7 +1857,8 @@ case "image": {
             `Pair code for ${pairing.number}:\n\nEnter it on that phone: WhatsApp → Linked devices → Link with phone number.\n\nDo not share the code with anyone else.`,
             "Copy pair code",
             pairing.code,
-            m
+            m,
+            [{ type: "url", label: "WhatsApp help", value: "https://faq.whatsapp.com/1324084875126592" }]
           );
         } catch (error) {
           console.error("Jinwiil pairing error:", error);
